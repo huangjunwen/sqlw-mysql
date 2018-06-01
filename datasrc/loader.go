@@ -57,6 +57,11 @@ func (loader *Loader) DSN() string {
 	return loader.dsn
 }
 
+// Conn returns the connection object. This connection object is also used by methods of Loader.
+func (loader *Loader) Conn() *sql.Conn {
+	return loader.conn
+}
+
 var (
 	// Copy from github.com/go-sql-driver/mysql/fields.go
 	scanTypeFloat32   = reflect.TypeOf(float32(0))
@@ -103,13 +108,13 @@ func (loader *Loader) LoadCols(query string, args ...interface{}) ([]Col, error)
 		databaseTypeName := ct.DatabaseTypeName()
 		nullable, ok := ct.Nullable()
 		if !ok {
-			panic(fmt.Errorf("ColumnType.Nullable() not supported in MySQL driver"))
+			panic(fmt.Errorf("ColumnType.Nullable() not supported in MySQL driver ?!"))
 		}
 
 		// XXX: From current driver's public API some information is lost:
 		// - Column type's length is not support yet (see https://github.com/go-sql-driver/mysql/pull/667)
-		// - Unsigned or not can't be determine when if type is NullInt64
-		// Do some tricks to read them from private fields.
+		// - Length and unsigned can't be determine if type is NullXXX (e.g. NullInt64, NullFloat64)
+		// So do some tricks to read them from private fields.
 		//
 		// XXX: In general reading data from private field is not a good idea, but i think here
 		// is ok since we're only using them to generate code
