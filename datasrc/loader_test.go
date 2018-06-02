@@ -2,84 +2,36 @@ package datasrc
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
 	"log"
-	"os"
 	"strings"
 	"testing"
 
-	"github.com/go-sql-driver/mysql"
+	"github.com/huangjunwen/sqlw-mysql/testutils"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/ory-am/dockertest.v3"
-)
-
-const (
-	defaultMySQLVersion = "5.7.21"
 )
 
 var (
 	loader *Loader
 )
 
-type noopLogger struct{}
-
-func (l noopLogger) Print(v ...interface{}) {}
-
 func exec(query string, args ...interface{}) {
 	_, err := loader.Conn().ExecContext(context.Background(), query, args...)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 }
 
 func TestMain(m *testing.M) {
 
-	// New docker pool.
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Get arguments from enviroment.
-	ver := os.Getenv("MYSQL_VERSION")
-	if ver == "" {
-		ver = defaultMySQLVersion
-	}
-	log.Printf("Using MySQL version %q\n", ver)
-
 	// Start MySQL server container.
-	log.Printf("Starting MySQL server, may take a while to pull docker image if not exists\n")
-	resource, err := pool.Run("mysql", ver, []string{"MYSQL_ROOT_PASSWORD=123456"})
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer pool.Purge(resource)
-
-	// Wait server up.
-	var dsn string
-	mysql.SetLogger(noopLogger{})
-	log.Printf("Waiting for MySQL server...\n")
-	if err := pool.Retry(func() error {
-
-		dsn = fmt.Sprintf("root:123456@(localhost:%s)/mysql", resource.GetPort("3306/tcp"))
-		connPool, err := sql.Open("mysql", dsn)
-		if err != nil {
-			return err
-		}
-		defer connPool.Close()
-
-		return connPool.Ping()
-
-	}); err != nil {
-		log.Fatal(err)
-	}
-	log.Printf("MySQL server up...")
+	dsn, teardown := testutils.StartMySQL()
+	defer teardown()
 
 	// Create the test loader.
+	var err error
 	loader, err = NewLoader(dsn)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	defer loader.Close()
 	log.Printf("Test loader created\n")
