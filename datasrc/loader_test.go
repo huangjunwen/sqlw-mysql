@@ -1,45 +1,11 @@
-package datasrc
+package datasrc_test
 
 import (
-	"context"
-	"log"
 	"strings"
 	"testing"
 
-	"github.com/huangjunwen/sqlw-mysql/testutils"
 	"github.com/stretchr/testify/assert"
 )
-
-var (
-	loader *Loader
-)
-
-func exec(query string, args ...interface{}) {
-	_, err := loader.Conn().ExecContext(context.Background(), query, args...)
-	if err != nil {
-		log.Panic(err)
-	}
-}
-
-func TestMain(m *testing.M) {
-
-	// Start MySQL server container.
-	dsn, teardown := testutils.StartMySQL()
-	defer teardown()
-
-	// Create the test loader.
-	var err error
-	loader, err = NewLoader(dsn)
-	if err != nil {
-		log.Panic(err)
-	}
-	defer loader.Close()
-	log.Printf("Test loader created\n")
-
-	// Start to run test.
-	m.Run()
-
-}
 
 func TestLoadCols(t *testing.T) {
 
@@ -103,7 +69,6 @@ func TestLoadCols(t *testing.T) {
 	assert.NoError(err)
 	for _, col := range cols {
 		parts := strings.Split(col.Name, "_")
-		assert.Len(parts, 3)
 		assert.Equal(parts[1] == "n", col.Nullable)
 		assert.Equal(parts[2], col.DataType)
 	}
@@ -191,7 +156,6 @@ func TestLoadColumns(t *testing.T) {
 	assert.NoError(err)
 	for _, column := range columns {
 		parts := strings.Split(column.Name, "_")
-		assert.Len(parts, 3)
 		if parts[2] == "dft" {
 			assert.True(column.HasDefaultValue)
 		} else {
