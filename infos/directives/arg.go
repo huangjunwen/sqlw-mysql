@@ -45,14 +45,6 @@ func (info *ArgsInfo) Valid() bool {
 	return info != nil
 }
 
-// NumArg returns the number of arguments in the statement. It returns 0 if info is nil or there is no args at all.
-func (info *ArgsInfo) NumArg() int {
-	if info == nil {
-		return 0
-	}
-	return len(info.argInfos)
-}
-
 // Args returns all ArgInfo in the statement.
 func (info *ArgsInfo) Args() []*ArgInfo {
 	if info == nil {
@@ -104,12 +96,12 @@ func (d *argDirective) QueryFragment() (string, error) {
 	return "", nil
 }
 
-func (d *argDirective) ProcessQueryResultCols(resultCols *[]datasrc.Col) error {
-	return nil
+func (d *argDirective) TextFragment() (string, error) {
+	return "", nil
 }
 
-func (d *argDirective) Fragment() (string, error) {
-	return "", nil
+func (d *argDirective) ExtraProcess() error {
+	return nil
 }
 
 func init() {

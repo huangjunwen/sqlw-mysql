@@ -79,12 +79,12 @@ func (d *varsDirective) QueryFragment() (string, error) {
 	return "", nil
 }
 
-func (d *varsDirective) ProcessQueryResultCols(resultCols *[]datasrc.Col) error {
-	return nil
+func (d *varsDirective) TextFragment() (string, error) {
+	return "", nil
 }
 
-func (d *varsDirective) Fragment() (string, error) {
-	return "", nil
+func (d *varsDirective) ExtraProcess() error {
+	return nil
 }
 
 func init() {

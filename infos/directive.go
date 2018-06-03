@@ -28,7 +28,7 @@ type TerminalDirective interface {
 	// and optionally to check SQL correctness.
 	QueryFragment() (string, error)
 
-	// Fragment returns the final fragment of this directive to construct a final statement text.
+	// TextFragment returns the final fragment of this directive to construct a final statement text.
 	// The statement text is no need to be a valid SQL query. It is up to the template to determine how to use it.
 	TextFragment() (string, error)
 

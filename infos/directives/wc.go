@@ -12,23 +12,28 @@ import (
 	"github.com/huangjunwen/sqlw-mysql/infos"
 )
 
-// WildcardsInfo contains wildcards information in a statement.
+// WildcardsInfo contains wildcard expansions information in a SELECT statement.
 type WildcardsInfo struct {
-	// len(wildcardColumns) == len(wildcardNames) == number of result cols
-	wildcardColumns []*infos.ColumnInfo
-	wildcardNames   []string
+	wildcards           []*WildcardInfo
+	resultCols2Wildcard []int
+}
 
-	db         *infos.DBInfo
-	marker     string
-	directives []*wcDirective
-	processed  bool
+// WildcardInfo contains a single wildcard expansion information in a SELECT statement.
+type WildcardInfo struct {
+	table  *infos.TableInfo
+	alias  string
+	offset int // Offset in result columns.
 }
 
 type wcDirective struct {
-	info       *WildcardsInfo
-	table      *infos.TableInfo
-	tableAlias string
-	idx        int // the idx-th wildcard directive in the statement
+	// Context.
+	loader *datasrc.Loader
+	db     *infos.DBInfo
+	stmt   *infos.StmtInfo
+
+	// Table and optinal alias.
+	table *infos.TableInfo
+	alias string
 }
 
 var (
@@ -41,7 +46,7 @@ var (
 	wcLocalsKey = wcLocalsKeyType{}
 )
 
-// ExtractWildcardsInfo extracts wildcard information from a statement or nil if not exists.
+// ExtractWildcardsInfo extracts wildcards information from a statement or nil if not exists.
 func ExtractWildcardsInfo(stmt *infos.StmtInfo) *WildcardsInfo {
 	locals := stmt.Locals(wcLocalsKey)
 	if locals != nil {
@@ -50,174 +55,260 @@ func ExtractWildcardsInfo(stmt *infos.StmtInfo) *WildcardsInfo {
 	return nil
 }
 
-func newWildcardsInfo(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.StmtInfo) *WildcardsInfo {
-	buf := make([]byte, 8)
-	if _, err := rand.Read(buf); err != nil {
-		panic(err)
-	}
-	marker := hex.EncodeToString(buf)
-	return &WildcardsInfo{
-		db: db,
-		// NOTE: Identiy must starts with letter so add a prefix.
-		marker: "wc" + marker,
-	}
-}
+func newWildcardsInfo(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.StmtInfo) (*WildcardsInfo, error) {
 
-func (info *WildcardsInfo) fmtMarker(idx int, isBegin bool) string {
-	if isBegin {
-		return fmt.Sprintf("%s_%d_b", info.marker, idx)
-	}
-	return fmt.Sprintf("%s_%d_e", info.marker, idx)
-}
-
-func (info *WildcardsInfo) parseMarker(s string) (isMarker bool, idx int, isBegin bool) {
-	parts := strings.Split(s, "_")
-	if len(parts) != 3 || parts[0] != info.marker {
-		return false, 0, false
+	if stmt.StmtType() != "SELECT" {
+		return nil, fmt.Errorf("<wc> is for SELECT only")
 	}
 
-	i, err := strconv.Atoi(parts[1])
+	// Generate a random marker.
+	var marker string
+	{
+		buf := make([]byte, 8)
+		if _, err := rand.Read(buf); err != nil {
+			return nil, err
+		}
+		marker = "wc" + hex.EncodeToString(buf)
+	}
+
+	fmtMarker := func(n int, start bool) string {
+		if start {
+			return fmt.Sprintf("%s_%d_s", marker, n)
+		}
+		return fmt.Sprintf("%s_%d_e", marker, n)
+	}
+
+	parseMarker := func(s string) (ok bool, n int, start bool) {
+		parts := strings.Split(s, "_")
+		if len(parts) != 3 || parts[0] != marker {
+			return false, 0, false
+		}
+
+		i, err := strconv.Atoi(parts[1])
+		if err != nil {
+			panic(fmt.Errorf("Invalid marker %+q", s))
+		}
+
+		switch parts[2] {
+		case "s":
+			return true, i, true
+		case "e":
+			return true, i, false
+		default:
+			panic(fmt.Errorf("Invalid marker %+q", s))
+		}
+	}
+
+	// Construct a modified version query.
+	wcDirectives := []*wcDirective{}
+	query := ""
+	{
+		fragments := []string{}
+		for _, directive := range stmt.Directives() {
+
+			fragment, err := directive.QueryFragment()
+			if err != nil {
+				return nil, err
+			}
+
+			d, ok := directive.(*wcDirective)
+			// For other Directive.
+			if !ok {
+				fragments = append(fragments, fragment)
+				continue
+			}
+
+			// For wcDirective, add start/end marker
+			wcDirectives = append(wcDirectives, d)
+			n := len(wcDirectives) - 1
+			fragments = append(fragments,
+				fmt.Sprintf("1 AS %s, ", fmtMarker(n, true)),
+				fragment,
+				fmt.Sprintf("1 AS %s, ", fmtMarker(n, false)),
+			)
+		}
+		query = strings.TrimSpace(strings.Join(fragments, ""))
+	}
+
+	// Query
+	resultCols, err := loader.LoadCols(query)
 	if err != nil {
-		panic(fmt.Errorf("Invalid marker %+q", s))
+		return nil, err
 	}
 
-	switch parts[2] {
-	case "b":
-		return true, i, true
-	case "e":
-		return true, i, false
-	default:
-		panic(fmt.Errorf("Invalid marker %+q", s))
-	}
+	// Collect wildcards info.
+	info := &WildcardsInfo{}
+	{
+		curN := -1
+		curWildcardInfo := (*WildcardInfo)(nil)
+		resultCols2 := []datasrc.Col{}
 
-}
+		for _, resultCol := range resultCols {
 
-func (info *WildcardsInfo) queryFragment(d *wcDirective) string {
-	return fmt.Sprintf("1 AS %s, %s, 1 AS %s", info.fmtMarker(d.idx, true), d.expansion(), info.fmtMarker(d.idx, false))
-}
+			ok, n, start := parseMarker(resultCol.Name)
+			// Normal column.
+			if !ok {
+				resultCols2 = append(resultCols2, resultCol)
+				continue
+			}
 
-func (info *WildcardsInfo) processQueryResultCols(resultCols *[]datasrc.Col) error {
-
-	// Should be run only once per stmt.
-	if info.processed {
-		return nil
-	}
-	info.processed = true
-
-	processedResultCols := []datasrc.Col{}
-	curWildcard := (*wcDirective)(nil)
-	curWildcardColPos := 0
-
-	for _, resultCol := range *resultCols {
-
-		resultColName := resultCol.Name
-		isMarker, idx, isBegin := info.parseMarker(resultColName)
-
-		// It's a marker column, toggle wildcard mode
-		if isMarker {
-			if isBegin {
-
-				// Enter wildcard mode
-				if curWildcard != nil {
-					return fmt.Errorf("<wc>: Expect not in wildcard mode but already in <wc table=%+q as=%+q>.",
-						curWildcard.table.TableName(), curWildcard.tableAlias)
+			// Marker column.
+			directive := wcDirectives[n]
+			if start {
+				// Start marker.
+				if curN >= 0 || curWildcardInfo != nil {
+					return nil, fmt.Errorf("Expect no wildcard start marker.")
 				}
-				curWildcard = info.directives[idx]
-				curWildcardColPos = 0
 
+				curWildcardInfo = &WildcardInfo{
+					table:  directive.table,
+					alias:  directive.alias,
+					offset: len(resultCols2),
+				}
+				curN = n
+				info.wildcards = append(info.wildcards, curWildcardInfo)
 			} else {
-
-				// Exit wildcard mode
-				if curWildcard == nil {
-					return fmt.Errorf("<wc>: Expect in wildcard mode But not.")
+				// End marker.
+				if curN < 0 || curWildcardInfo == nil {
+					return nil, fmt.Errorf("Expect wildcard start marker.")
 				}
-				if curWildcardColPos != curWildcard.table.NumColumn() {
-					return fmt.Errorf("<wc>: Expect table column pos %d, but got %d.",
-						curWildcard.table.NumColumn(), curWildcardColPos)
+				if n != curN {
+					return nil, fmt.Errorf("Wildcard start/end marker mismatch: %d!=%d", curN, n)
 				}
-				curWildcard = nil
-				curWildcardColPos = 0
-
+				// Column numbers between start/end markers should be the same as the number of table columns.
+				if len(resultCols2) != curWildcardInfo.offset+curWildcardInfo.table.NumColumn() {
+					return nil, fmt.Errorf("Wildcard column number mismatch.")
+				}
+				curN = -1
+				curWildcardInfo = nil
 			}
 
-			continue
 		}
 
-		// It's a normal column
-		processedResultCols = append(processedResultCols, resultCol)
+		// Markers should be in pairs and properly closed.
+		if curN >= 0 || curWildcardInfo != nil {
+			return nil, fmt.Errorf("Expect not inside wildcard markers.")
+		}
 
-		if curWildcard == nil {
-
-			// Not in wildcard mode
-			info.wildcardColumns = append(info.wildcardColumns, nil)
-			info.wildcardNames = append(info.wildcardNames, "")
-
-		} else {
-
-			// In wildcard mode
-			wildcardColumn := curWildcard.table.Column(curWildcardColPos)
-			if !wildcardColumn.Valid() {
-				return fmt.Errorf("<wc>: Invalid column pos %d for table %s.",
-					curWildcardColPos, curWildcard.table.String())
+		// Check result columns
+		resultCols = resultCols2
+		expectResultCols := stmt.QueryResultCols()
+		if len(expectResultCols) != len(resultCols) {
+			return nil, fmt.Errorf("Query result column number mismatch: %d!=%d.", len(expectResultCols), len(resultCols))
+		}
+		for i, resultCol := range resultCols {
+			if expectResultCols[i] != resultCol {
+				return nil, fmt.Errorf("Query result column[i] mismatch: %#v!=%#v.", expectResultCols[i], resultCols)
 			}
-
-			// XXX: Don't check DataType
-
-			curWildcardColPos += 1
-			info.wildcardColumns = append(info.wildcardColumns, wildcardColumn)
-			info.wildcardNames = append(info.wildcardNames, curWildcard.name())
-
 		}
 
 	}
 
-	if curWildcard != nil {
-		return fmt.Errorf("<wc>: Wildcard mode is not exited.")
+	// Fill resultCols2Wildcard
+	{
+		info.resultCols2Wildcard = make([]int, len(resultCols))
+		for i := 0; i < len(info.resultCols2Wildcard); i++ {
+			info.resultCols2Wildcard[i] = -1
+		}
+		for i, wildcardInfo := range info.wildcards {
+			for j := 0; j < wildcardInfo.table.NumColumn(); j++ {
+				info.resultCols2Wildcard[wildcardInfo.offset+j] = i
+			}
+		}
+
 	}
 
-	*resultCols = processedResultCols
-	return nil
-
+	return info, nil
 }
 
-// Valid return true if info != nil.
+// Valid returns true if info != nil.
 func (info *WildcardsInfo) Valid() bool {
 	return info != nil
 }
 
-// WildcardColumn returns the table column for the i-th result column
-// if it is from a <wc> directive's expansion and nil otherwise.
+// Wildcards returns all WildcardInfo in a statement.
+func (info *WildcardsInfo) Wildcards() []*WildcardInfo {
+	if info == nil {
+		return nil
+	}
+	return info.wildcards
+}
+
+// WildcardColumn returns the i-th query result column as a wildcard expansion table column.
+// It returns nil if info is nil or i is out of range, or the i-th query result column is not from a wildcard expansion.
 func (info *WildcardsInfo) WildcardColumn(i int) *infos.ColumnInfo {
 	if info == nil {
 		return nil
 	}
-	if i < 0 || i >= len(info.wildcardColumns) {
+	if i < 0 || i >= len(info.resultCols2Wildcard) {
 		return nil
 	}
-	return info.wildcardColumns[i]
+	idx := info.resultCols2Wildcard[i]
+	if idx < 0 {
+		return nil
+	}
+	wildcard := info.wildcards[idx]
+	return wildcard.table.Column(i - wildcard.offset)
 }
 
-// WildcardName returns the wildcard name (table name or alias) for the i-th result column
-// if it is from a <wc> directive or "" otherwise.
+// WildcardName returns the wildcard name of the i-th query result column.
+// It returns "" if info is nil or i is out of range, or the i-th query result column is not from a wildcard expansion.
 func (info *WildcardsInfo) WildcardName(i int) string {
 	if info == nil {
 		return ""
 	}
-	if i < 0 || i >= len(info.wildcardNames) {
+	if i < 0 || i >= len(info.resultCols2Wildcard) {
 		return ""
 	}
-	return info.wildcardNames[i]
+	idx := info.resultCols2Wildcard[i]
+	if idx < 0 {
+		return ""
+	}
+	return info.wildcards[idx].WildcardName()
+
+}
+
+// Valid returns true if info is not nil.
+func (info *WildcardInfo) Valid() bool {
+	return info != nil
+}
+
+// Table returns the wildcard table.
+func (info *WildcardInfo) Table() *infos.TableInfo {
+	if info == nil {
+		return nil
+	}
+	return info.table
+}
+
+// Alias returns the optinal wildcard alias.
+func (info *WildcardInfo) Alias() string {
+	if info == nil {
+		return ""
+	}
+	return info.alias
+}
+
+// WildcardName returns alias/table name.
+func (info *WildcardInfo) WildcardName() string {
+	if info == nil {
+		return ""
+	}
+	if info.alias != "" {
+		return info.alias
+	}
+	return info.table.TableName()
+}
+
+// Offset returns the offset of this wildcard expansion in query result columns. It returns -1 if info is nil.
+func (info *WildcardInfo) Offset() int {
+	if info == nil {
+		return -1
+	}
+	return info.offset
 }
 
 func (d *wcDirective) Initialize(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.StmtInfo, tok etree.Token) error {
-
-	// Getset WildcardsInfo.
-	locals := stmt.Locals(wcLocalsKey)
-	if locals == nil {
-		locals = newWildcardsInfo(loader, db, stmt)
-		stmt.SetLocals(wcLocalsKey, locals)
-	}
-	info := locals.(*WildcardsInfo)
 
 	// Extract Table info.
 	elem := tok.(*etree.Element)
@@ -232,58 +323,57 @@ func (d *wcDirective) Initialize(loader *datasrc.Loader, db *infos.DBInfo, stmt 
 	}
 
 	// Optinally alias
-	as := elem.SelectAttrValue("as", "")
+	alias := elem.SelectAttrValue("as", "")
 
 	// Set fields
-	d.info = info
+	d.loader = loader
+	d.db = db
+	d.stmt = stmt
 	d.table = table
-	d.tableAlias = as
-	d.idx = len(info.directives)
-
-	// Check wildcard name uniqueness
-	for _, directive := range info.directives {
-		if d.name() == directive.name() {
-			return fmt.Errorf("Duplicated wildcard name %+q, please use an alternative alias", d.name())
-		}
-	}
-
-	// Add to WildcardsInfo
-	info.directives = append(info.directives, d)
-
+	d.alias = alias
 	return nil
 
 }
 
 func (d *wcDirective) QueryFragment() (string, error) {
-	return d.info.queryFragment(d), nil
-}
 
-func (d *wcDirective) ProcessQueryResultCols(resultCols *[]datasrc.Col) error {
-	return d.info.processQueryResultCols(resultCols)
-}
-
-func (d *wcDirective) Fragment() (string, error) {
-	return d.expansion(), nil
-}
-
-func (d *wcDirective) expansion() string {
-
+	// Expands to fields list.
 	prefix := d.name()
 	fragments := []string{}
 	for i := 0; i < d.table.NumColumn(); i++ {
 		if i != 0 {
 			fragments = append(fragments, ", ")
 		}
-		fragments = append(fragments, fmt.Sprintf("`%s`.`%s`", prefix, d.table.Column(i)))
+		fragments = append(fragments, fmt.Sprintf("`%s`.`%s`", prefix, d.table.Column(i).ColumnName()))
 	}
-
-	return strings.Join(fragments, "")
+	return strings.Join(fragments, ""), nil
 
 }
 
+func (d *wcDirective) TextFragment() (string, error) {
+	// The same as QueryFragment.
+	return d.QueryFragment()
+}
+
+func (d *wcDirective) ExtraProcess() error {
+	locals := d.stmt.Locals(wcLocalsKey)
+	if locals != nil {
+		// Already has WildcardsInfo created, do nothing.
+		return nil
+	}
+
+	// Creates a WildcardsInfo for this statement.
+	info, err := newWildcardsInfo(d.loader, d.db, d.stmt)
+	if err != nil {
+		return err
+	}
+	d.stmt.SetLocals(wcLocalsKey, info)
+	return nil
+}
+
 func (d *wcDirective) name() string {
-	if d.tableAlias != "" {
-		return d.tableAlias
+	if d.alias != "" {
+		return d.alias
 	}
 	return d.table.TableName()
 }

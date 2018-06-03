@@ -32,12 +32,12 @@ func (d *replDirective) QueryFragment() (string, error) {
 	return d.origin, nil
 }
 
-func (d *replDirective) ProcessQueryResultCols(resultCols *[]datasrc.Col) error {
-	return nil
+func (d *replDirective) TextFragment() (string, error) {
+	return d.with, nil
 }
 
-func (d *replDirective) Fragment() (string, error) {
-	return d.with, nil
+func (d *replDirective) ExtraProcess() error {
+	return nil
 }
 
 func init() {
