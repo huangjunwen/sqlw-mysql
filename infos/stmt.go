@@ -11,10 +11,12 @@ import (
 
 // StmtInfo contains information of a statement.
 type StmtInfo struct {
-	stmtType   string // 'SELECT'/'UPDATE'/'INSERT'/'DELETE'
-	stmtName   string
-	text       string
-	resultCols []datasrc.Col // for SELECT stmt only
+	stmtName        string
+	directives      []TerminalDirective
+	query           string        // Construct by QueryFragment
+	stmtType        string        // 'SELECT'/'UPDATE'/'INSERT'/'DELETE'
+	queryResultCols []datasrc.Col // For SELECT stmt only
+	text            string        // Construct by TextFragment
 
 	locals map[interface{}]interface{} // directive locals
 }
@@ -26,7 +28,7 @@ type StmtInfo struct {
 //     SELECT <wc table="blog" /> FROM blog WHERE user_id=<repl with=":userId">1</repl>
 //   </stmt>
 //
-// A statement xml element contains SQL statement fragments and special directives.
+// which contains SQL statement fragments and special directives.
 func NewStmtInfo(loader *datasrc.Loader, db *DBInfo, stmtElem *etree.Element) (*StmtInfo, error) {
 
 	info := &StmtInfo{
@@ -37,15 +39,85 @@ func NewStmtInfo(loader *datasrc.Loader, db *DBInfo, stmtElem *etree.Element) (*
 		return nil, fmt.Errorf("Expect <stmt> but got <%s>", stmtElem.Tag)
 	}
 
-	// Name attribute
-	info.stmtName = stmtElem.SelectAttrValue("name", "")
-	if info.stmtName == "" {
-		return nil, fmt.Errorf("Missing 'name' attribute of <%s>", info.stmtType)
+	// Name attribute.
+	{
+		info.stmtName = stmtElem.SelectAttrValue("name", "")
+		if info.stmtName == "" {
+			return nil, fmt.Errorf("Missing 'name' attribute of <%s>", info.stmtType)
+		}
 	}
 
-	// Process it.
-	if err := info.process(loader, db, stmtElem); err != nil {
-		return nil, err
+	// Convert to directives and Initialize.
+	{
+		info.directives = []TerminalDirective{}
+		for _, token := range stmtElem.Child {
+			directives, err := info.token2TerminalDirectives(loader, db, token)
+			if err != nil {
+				return nil, err
+			}
+			info.directives = append(info.directives, directives...)
+		}
+	}
+
+	// Construct query.
+	{
+		fragments := []string{}
+		for _, directive := range info.directives {
+			fragment, err := directive.QueryFragment()
+			if err != nil {
+				return nil, err
+			}
+			fragments = append(fragments, fragment)
+		}
+		info.query = strings.TrimSpace(strings.Join(fragments, ""))
+	}
+
+	// Determine statement type.
+	// TODO: union ?
+	{
+		sp := strings.IndexFunc(info.query, unicode.IsSpace)
+		if sp < 0 {
+			return nil, fmt.Errorf("Can't determine statement type for %+q", info.query)
+		}
+		verb := strings.ToUpper(info.query[:sp])
+		switch verb {
+		case "SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE":
+		default:
+			return nil, fmt.Errorf("Not supported statement type %+q", verb)
+		}
+
+		info.stmtType = verb
+	}
+
+	// Get query result columns if it is a SELECT.
+	if info.StmtType() == "SELECT" {
+		cols, err := loader.LoadCols(info.query)
+		if err != nil {
+			return nil, err
+		}
+		info.queryResultCols = cols
+	}
+
+	// Construct text.
+	{
+		fragments := []string{}
+		for _, directive := range info.directives {
+			fragment, err := directive.TextFragment()
+			if err != nil {
+				return nil, err
+			}
+			fragments = append(fragments, fragment)
+		}
+		info.text = strings.TrimSpace(strings.Join(fragments, ""))
+	}
+
+	// Extra process
+	{
+		for _, directive := range info.directives {
+			if err := directive.ExtraProcess(); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return info, nil
@@ -84,14 +156,14 @@ func (info *StmtInfo) token2TerminalDirectives(loader *datasrc.Loader, db *DBInf
 		return []TerminalDirective{d}, nil
 
 	case NonterminalDirective:
-		ts, err := d.Expand()
+		ds, err := d.Expand()
 		if err != nil {
 			return nil, err
 		}
 
 		ret := []TerminalDirective{}
-		for _, t := range ts {
-			terminalDirectives, err := info.token2TerminalDirectives(loader, db, t)
+		for _, d := range ds {
+			terminalDirectives, err := info.token2TerminalDirectives(loader, db, d)
 			if err != nil {
 				return nil, err
 			}
@@ -104,100 +176,6 @@ func (info *StmtInfo) token2TerminalDirectives(loader *datasrc.Loader, db *DBInf
 		panic(fmt.Errorf("Directive must be either TerminalDirective or NonterminalDirective"))
 	}
 
-}
-
-func (info *StmtInfo) process(loader *datasrc.Loader, db *DBInfo, stmtElem *etree.Element) error {
-
-	// Convert stmtElem to a list of TerminalDirective
-	directives := []TerminalDirective{}
-
-	for _, token := range stmtElem.Child {
-
-		ds, err := info.token2TerminalDirectives(loader, db, token)
-		if err != nil {
-			return err
-		}
-		directives = append(directives, ds...)
-
-	}
-
-	// Construct query.
-	query := ""
-
-	{
-		fragments := []string{}
-
-		for _, directive := range directives {
-
-			fragment, err := directive.QueryFragment()
-			if err != nil {
-				return err
-			}
-			fragments = append(fragments, fragment)
-
-		}
-
-		query = strings.TrimSpace(strings.Join(fragments, ""))
-
-	}
-
-	// Determine statement type.
-	{
-
-		sp := strings.IndexFunc(query, unicode.IsSpace)
-		if sp < 0 {
-			return fmt.Errorf("Can't determine statement type for %+q", query)
-		}
-		verb := strings.ToUpper(query[:sp])
-		switch verb {
-		case "SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE":
-		default:
-			return fmt.Errorf("Not supported statement type %+q", verb)
-		}
-
-		info.stmtType = verb
-
-	}
-
-	// If it's a SELECT statement, load query result columns.
-	if info.StmtType() == "SELECT" {
-
-		cols, err := loader.LoadCols(query)
-		if err != nil {
-			return err
-		}
-
-		// Process query result
-		for _, directive := range directives {
-			if err := directive.ProcessQueryResultCols(&cols); err != nil {
-				return err
-			}
-		}
-
-		info.resultCols = cols
-
-	}
-
-	// Final text
-	{
-
-		fragments := []string{}
-
-		for _, directive := range directives {
-
-			fragment, err := directive.Fragment()
-			if err != nil {
-				return err
-			}
-			fragments = append(fragments, fragment)
-
-		}
-
-		info.text = strings.TrimSpace(strings.Join(fragments, ""))
-
-	}
-
-	return nil
 }
 
 // Valid returns true if info != nil.
@@ -226,6 +204,14 @@ func (info *StmtInfo) StmtType() string {
 	return info.stmtType
 }
 
+// Directives returns the list of terminal directives the statement composed by.
+func (info *StmtInfo) Directives() []TerminalDirective {
+	if info == nil {
+		return nil
+	}
+	return info.directives
+}
+
 // Text returns the statment text. It returns "" if info is nil.
 func (info *StmtInfo) Text() string {
 	if info == nil {
@@ -234,20 +220,20 @@ func (info *StmtInfo) Text() string {
 	return info.text
 }
 
-// NumResultCol returns the number of result columns. It returns 0 if info is nil or it is not "SELECT" statement.
-func (info *StmtInfo) NumResultCol() int {
+// Query returns the statement query. This is a valid SQL. It returns "" if info is nil.
+func (info *StmtInfo) Query() string {
 	if info == nil {
-		return 0
+		return ""
 	}
-	return len(info.resultCols)
+	return info.query
 }
 
-// ResultCols returns result columns. It returns nil if info is nil.
-func (info *StmtInfo) ResultCols() []datasrc.Col {
+// QueryResultCols returns the result columns of the query if the statement is a SELECT.
+func (info *StmtInfo) QueryResultCols() []datasrc.Col {
 	if info == nil {
 		return nil
 	}
-	return info.resultCols
+	return info.queryResultCols
 }
 
 // Locals returns the associated value for the given key in StmtInfo's locals map.

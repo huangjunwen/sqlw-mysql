@@ -28,13 +28,12 @@ type TerminalDirective interface {
 	// and optionally to check SQL correctness.
 	QueryFragment() (string, error)
 
-	// ProcessQueryResultCols processes the result column information (in place) for SELECT query.
-	// This method is called only when the query is a SELECT.
-	ProcessQueryResultCols(resultCols *[]datasrc.Col) error
-
 	// Fragment returns the final fragment of this directive to construct a final statement text.
 	// The statement text is no need to be a valid SQL query. It is up to the template to determine how to use it.
-	Fragment() (string, error)
+	TextFragment() (string, error)
+
+	// ExtraProcess runs some extra process.
+	ExtraProcess() error
 }
 
 // textDirective is a special directive.
@@ -55,12 +54,12 @@ func (d *textDirective) QueryFragment() (string, error) {
 	return d.data, nil
 }
 
-func (d *textDirective) ProcessQueryResultCols(resultCols *[]datasrc.Col) error {
-	return nil
+func (d *textDirective) TextFragment() (string, error) {
+	return d.data, nil
 }
 
-func (d *textDirective) Fragment() (string, error) {
-	return d.data, nil
+func (d *textDirective) ExtraProcess() error {
+	return nil
 }
 
 var (
