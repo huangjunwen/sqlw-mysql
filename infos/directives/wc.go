@@ -100,7 +100,7 @@ func newWildcardsInfo(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.Stmt
 	}
 
 	// Construct a modified version query.
-	wcDirectives := []*wcDirective{}
+	directives := []*wcDirective{}
 	query := ""
 	{
 		fragments := []string{}
@@ -119,12 +119,12 @@ func newWildcardsInfo(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.Stmt
 			}
 
 			// For wcDirective, add start/end marker
-			wcDirectives = append(wcDirectives, d)
-			n := len(wcDirectives) - 1
+			directives = append(directives, d)
+			n := len(directives) - 1
 			fragments = append(fragments,
 				fmt.Sprintf("1 AS %s, ", fmtMarker(n, true)),
 				fragment,
-				fmt.Sprintf("1 AS %s, ", fmtMarker(n, false)),
+				fmt.Sprintf(", 1 AS %s", fmtMarker(n, false)),
 			)
 		}
 		query = strings.TrimSpace(strings.Join(fragments, ""))
@@ -153,7 +153,7 @@ func newWildcardsInfo(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.Stmt
 			}
 
 			// Marker column.
-			directive := wcDirectives[n]
+			directive := directives[n]
 			if start {
 				// Start marker.
 				if curN >= 0 || curWildcardInfo != nil {
