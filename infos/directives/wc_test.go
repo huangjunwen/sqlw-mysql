@@ -77,7 +77,7 @@ func TestWildcardsInfo(t *testing.T) {
 		doc := etree.NewDocument()
 		assert.NoError(doc.ReadFromString(`
 			<stmt name="xxx">
-				SELECT u.*, NOW(), u.* FROM (SELECT <wc table="user" /> FROM user) u
+				SELECT NOW(), u.*, NOW(), u.*, NOW() FROM (SELECT <wc table="user" /> FROM user) u
 			</stmt>
 		`))
 		stmt, err := infos.NewStmtInfo(loader, db, doc.Root())
@@ -87,25 +87,27 @@ func TestWildcardsInfo(t *testing.T) {
 		assert.True(wildcards.Valid())
 		assert.Len(wildcards.Wildcards(), 2)
 
-		assert.Equal(0, wildcards.Wildcards()[0].Offset())
+		assert.Equal(1, wildcards.Wildcards()[0].Offset())
 		assert.Equal("user", wildcards.Wildcards()[0].WildcardName())
-		assert.Equal(4, wildcards.Wildcards()[1].Offset())
+		assert.Equal(5, wildcards.Wildcards()[1].Offset())
 		assert.Equal("user", wildcards.Wildcards()[1].WildcardName())
 
-		assert.Len(stmt.QueryResultCols(), 7)
-		assert.Equal("id", wildcards.WildcardColumn(0).ColumnName())
-		assert.Equal("name", wildcards.WildcardColumn(1).ColumnName())
-		assert.Equal("female", wildcards.WildcardColumn(2).ColumnName())
-		assert.False(wildcards.WildcardColumn(3).Valid())
-		assert.Equal("id", wildcards.WildcardColumn(4).ColumnName())
-		assert.Equal("name", wildcards.WildcardColumn(5).ColumnName())
-		assert.Equal("female", wildcards.WildcardColumn(6).ColumnName())
+		assert.Len(stmt.QueryResultCols(), 9)
+		assert.False(wildcards.WildcardColumn(0).Valid())
+		assert.Equal("id", wildcards.WildcardColumn(1).ColumnName())
+		assert.Equal("name", wildcards.WildcardColumn(2).ColumnName())
+		assert.Equal("female", wildcards.WildcardColumn(3).ColumnName())
+		assert.False(wildcards.WildcardColumn(4).Valid())
+		assert.Equal("id", wildcards.WildcardColumn(5).ColumnName())
+		assert.Equal("name", wildcards.WildcardColumn(6).ColumnName())
+		assert.Equal("female", wildcards.WildcardColumn(7).ColumnName())
+		assert.False(wildcards.WildcardColumn(8).Valid())
 	}
 
 	{
 		doc := etree.NewDocument()
 		assert.NoError(doc.ReadFromString(`
-			<stmt name="Topdogs">
+			<stmt name="xxx">
 			SELECT
 				<wc table="employee" as="e1" />, <wc table="user" as="u" />
 			FROM
@@ -127,5 +129,19 @@ func TestWildcardsInfo(t *testing.T) {
 		assert.Equal("e1", wildcards.Wildcards()[0].WildcardName())
 		assert.Equal(4, wildcards.Wildcards()[1].Offset())
 		assert.Equal("u", wildcards.Wildcards()[1].WildcardName())
+	}
+	{
+		doc := etree.NewDocument()
+		assert.NoError(doc.ReadFromString(`
+			<stmt name="xxx">
+			SELECT female FROM (SELECT <wc table="user" /> FROM user) u
+			</stmt>
+		`))
+		stmt, err := infos.NewStmtInfo(loader, db, doc.Root())
+		assert.NoError(err)
+		wildcards := ExtractWildcardsInfo(stmt)
+
+		assert.True(wildcards.Valid())
+		assert.Len(wildcards.Wildcards(), 0)
 	}
 }
