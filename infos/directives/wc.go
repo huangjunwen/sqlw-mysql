@@ -198,7 +198,7 @@ func newWildcardsInfo(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.Stmt
 		}
 		for i, resultCol := range resultCols {
 			if expectResultCols[i] != resultCol {
-				return nil, fmt.Errorf("Query result column[i] mismatch: %#v!=%#v.", expectResultCols[i], resultCols)
+				return nil, fmt.Errorf("Query result column[%d] mismatch: %#v!=%#v.", i, expectResultCols[i], resultCols)
 			}
 		}
 

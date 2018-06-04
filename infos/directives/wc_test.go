@@ -71,6 +71,7 @@ func TestWildcardsInfo(t *testing.T) {
 		assert.True(wildcards.Valid())
 		assert.Len(wildcards.Wildcards(), 1)
 		assert.Equal(0, wildcards.Wildcards()[0].Offset())
+		assert.Equal([]int{0, 0, 0}, wildcards.resultCols2Wildcard)
 
 	}
 	{
@@ -102,6 +103,7 @@ func TestWildcardsInfo(t *testing.T) {
 		assert.Equal("name", wildcards.WildcardColumn(6).ColumnName())
 		assert.Equal("female", wildcards.WildcardColumn(7).ColumnName())
 		assert.False(wildcards.WildcardColumn(8).Valid())
+		assert.Equal([]int{-1, 0, 0, 0, -1, 1, 1, 1, -1}, wildcards.resultCols2Wildcard)
 	}
 
 	{
@@ -129,6 +131,7 @@ func TestWildcardsInfo(t *testing.T) {
 		assert.Equal("e1", wildcards.Wildcards()[0].WildcardName())
 		assert.Equal(4, wildcards.Wildcards()[1].Offset())
 		assert.Equal("u", wildcards.Wildcards()[1].WildcardName())
+		assert.Equal([]int{0, 0, 0, 0, 1, 1, 1}, wildcards.resultCols2Wildcard)
 	}
 	{
 		doc := etree.NewDocument()
@@ -143,5 +146,6 @@ func TestWildcardsInfo(t *testing.T) {
 
 		assert.True(wildcards.Valid())
 		assert.Len(wildcards.Wildcards(), 0)
+		assert.Equal([]int{-1}, wildcards.resultCols2Wildcard)
 	}
 }
