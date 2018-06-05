@@ -1,0 +1,9 @@
+{
+  "scan_type_map": "scan_type_map.json",
+  "tmpl": {
+    "table": "table.tmpl",
+    "stmt": "stmt.tmpl",
+    "extra": [
+    ]
+  }
+}

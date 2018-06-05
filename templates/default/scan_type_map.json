@@ -1,0 +1,17 @@
+{
+  "float32":   ["float32", "null.Float32"],
+  "float64":   ["float64", "null.Float64"],
+  "bool":      ["bool", "null.Bool"],
+  "int8":      ["int8", "null.Int8"],
+  "uint8":     ["uint8", "null.Uint8"],
+  "int16":     ["int16", "null.Int16"],
+  "uint16":    ["uint16", "null.Uint16"],
+  "int32":     ["int32", "null.Int32"],
+  "uint32":    ["uint32", "null.Uint32"],
+  "int64":     ["int64", "null.Int64"],
+  "uint64":    ["uint64", "null.Uint64"],
+  "time":      ["time.Time", "null.Time"],
+  "bit":       ["string", "null.String"],
+  "json":      ["string", "null.String"],
+  "string":    ["string", "null.String"]
+}
