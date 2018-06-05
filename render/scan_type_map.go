@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+
+	"github.com/huangjunwen/sqlw-mysql/datasrc"
+	"github.com/huangjunwen/sqlw-mysql/infos"
 )
 
 // ScanTypeMap maps data type to scan type.
@@ -28,4 +31,65 @@ func NewScanTypeMap(r io.Reader) (ScanTypeMap, error) {
 	}
 	return ret, nil
 
+}
+
+func (m ScanTypeMap) scanType(val interface{}, i int) (string, error) {
+
+	dataType, nullable := "", true
+
+	switch v := val.(type) {
+	case datasrc.Col:
+		dataType = v.DataType
+		nullable = v.Nullable
+
+	case *datasrc.Col:
+		dataType = v.DataType
+		nullable = v.Nullable
+
+	case datasrc.Column:
+		dataType = v.DataType
+		nullable = v.Nullable
+
+	case *datasrc.Column:
+		dataType = v.DataType
+		nullable = v.Nullable
+
+	case *infos.ColumnInfo:
+		dataType = v.DataType()
+		nullable = v.Nullable()
+
+	default:
+		return "", fmt.Errorf("ScanType: Expect table or query result column but got %T", val)
+	}
+
+	scanTypes, found := m[dataType]
+	if !found {
+		// Some default.
+		scanTypes = [2]string{"[]byte", "[]byte"}
+	}
+
+	if i < 0 {
+		if nullable {
+			i = 1
+		} else {
+			i = 0
+		}
+	}
+
+	return scanTypes[i], nil
+}
+
+// ScanType returns the scan type for the (table or query result) column.
+func (m ScanTypeMap) ScanType(col interface{}) (string, error) {
+	return m.scanType(col, -1)
+}
+
+// NotNullScanType returns the not nullable scan type for the (table or query result) column.
+func (m ScanTypeMap) NotNullScanType(col interface{}) (string, error) {
+	return m.scanType(col, 0)
+}
+
+// NullScanType returns the nullable scan type for the (table or query result) column.
+func (m ScanTypeMap) NullScanType(col interface{}) (string, error) {
+	return m.scanType(col, 1)
 }

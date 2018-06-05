@@ -61,7 +61,7 @@ func StmtDir(stmtDir string) Option {
 			return err
 		}
 		if !fi.IsDir() {
-			return fmt.Errorf("%+q is not a directory.")
+			return fmt.Errorf("%+q is not a directory.", stmtDir)
 		}
 		r.stmtDir = stmtDir
 		return nil
