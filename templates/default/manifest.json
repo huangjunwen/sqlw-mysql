@@ -3,7 +3,8 @@
   "tmpl": {
     "table": "table.tmpl",
     "stmt": "stmt.tmpl",
-    "extra": [
+    "etc": [
+      "x.tmpl"
     ]
   }
 }
