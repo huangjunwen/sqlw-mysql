@@ -1,6 +1,7 @@
 package render
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"text/template"
@@ -26,6 +27,24 @@ func camel(s string, upper bool) string {
 	return strings.Join(parts, "")
 }
 
+func slice(s string, args ...int) (result string, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			result = ""
+			err = fmt.Errorf("Slice: %s", e)
+		}
+	}()
+
+	switch len(args) {
+	case 1:
+		return s[args[0]:], nil
+	case 2:
+		return s[args[0]:args[1]], nil
+	default:
+		return "", fmt.Errorf("Slice: expect one or two integer but got %d", len(args))
+	}
+}
+
 func (r *Renderer) funcMap() template.FuncMap {
 
 	return template.FuncMap{
@@ -37,6 +56,8 @@ func (r *Renderer) funcMap() template.FuncMap {
 		"LowerCamel": func(s string) string {
 			return camel(s, false)
 		},
+
+		"Slice": slice,
 
 		"ScanType": func(s interface{}) (string, error) {
 			return r.scanTypeMap.ScanType(s)
