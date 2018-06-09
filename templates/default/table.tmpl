@@ -81,7 +81,7 @@ func (tr *{{ $upper }}) ColumnScanner(i int) interface{} {
 }
 
 func (tr *null{{ $upper }}) ColumnScanners(dest *[]interface{}) {
-  // *tr = null{{ $upper }}{}
+  *tr = null{{ $upper }}{}
   *dest = append(*dest,
   {{ range $i, $col := .Table.Columns -}}
   {{ if $col.Nullable -}}
@@ -103,13 +103,13 @@ func (tr *null{{ $upper }}) Ordinary() (*{{ $upper }}, error) {
     nullCol = "{{ $col.ColumnName }}"
     goto CheckNULL
   }
-  tr.ordinary.{{ UpperCamel $col.ColumnName }} = *tr.null{{ UpperCamel $col.ColumnName }}.Ptr()
+  tr.ordinary.{{ UpperCamel $col.ColumnName }} = tr.null{{ UpperCamel $col.ColumnName }}.{{ Slice (NullScanType $col) 5 }}
 
   {{ end -}}
   {{ end -}}
 
   if false {
-    // Suppress "label CheckNULL defined and not used"
+    // NOTE: Impossible branch to suppress "label CheckNULL defined and not used" error.
     goto CheckNULL
   }
   return &tr.ordinary, nil
