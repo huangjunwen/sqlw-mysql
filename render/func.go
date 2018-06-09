@@ -38,15 +38,15 @@ func (r *Renderer) funcMap() template.FuncMap {
 			return camel(s, false)
 		},
 
-		"ScanType": func(s string) (string, error) {
+		"ScanType": func(s interface{}) (string, error) {
 			return r.scanTypeMap.ScanType(s)
 		},
 
-		"NotNullScanType": func(s string) (string, error) {
+		"NotNullScanType": func(s interface{}) (string, error) {
 			return r.scanTypeMap.NotNullScanType(s)
 		},
 
-		"NullScanType": func(s string) (string, error) {
+		"NullScanType": func(s interface{}) (string, error) {
 			return r.scanTypeMap.NullScanType(s)
 		},
 

@@ -1,3 +1,122 @@
 package {{ .PackageName }}
 
-// Table {{ .Table.TableName }}
+
+import (
+	"fmt"
+	"time"
+
+	"gopkg.in/volatiletech/null.v6"
+)
+
+// Suppress not used errors.
+var (
+	_ = fmt.Printf
+	_ = time.Now
+	_ = null.NewBool
+)
+
+{{ $name := .Table.TableName }}
+{{ $upper := UpperCamel .Table.TableName }}
+{{ $lower := LowerCamel .Table.TableName }}
+
+// {{ $upper }} represents a row of table `{{ $name }}`.
+type {{ $upper }} struct {
+  {{ range $col := .Table.Columns -}}
+	{{ UpperCamel $col.ColumnName }} {{ ScanType $col }} `json:"{{ $col.ColumnName }}" db:"{{ $col.ColumnName }}"`
+  {{ end -}}
+}
+
+// null{{ $upper }} is nullable version of {{ $upper }}. It's mainly used for scanning row which maybe NULL (e.g. in outer join).
+type null{{ $upper }} struct {
+  ordinary {{ $upper }}
+  {{ range $col := .Table.Columns -}}{{ if not $col.Nullable -}}
+	null{{ UpperCamel $col.ColumnName }} {{ NullScanType $col }}
+  {{ end -}}{{ end -}}
+}
+
+var (
+  {{ $lower }}Meta = NewTableMeta(
+    "{{ $name }}",
+    []string{ {{- range $col := .Table.Columns }}"{{ $col.ColumnName }}", {{ end -}} },
+    OptColumnsWithDefault({{ range $col := .Table.Columns }}{{ if $col.HasDefaultValue }}"{{ $col.ColumnName }}", {{ end }}{{ end }}),
+    {{ if .Table.Primary.Valid -}}
+    OptPrimaryColumns({{ range $col := .Table.Primary.Columns }}"{{ $col.ColumnName }}", {{ end }}),
+    {{ end -}}
+    {{ if .Table.AutoIncColumn.Valid -}}
+    OptAutoIncColumn("{{ .Table.AutoIncColumn.ColumnName }}"),
+    {{ end -}}
+  )
+)
+
+// TableMeta returns the table meta information of table `{{ $name }}`.
+func (tr *{{ $upper }}) TableMeta() *TableMeta {
+  return {{ $lower }}Meta
+}
+
+// Valid returns true if tr is not nil.
+func (tr *{{ $upper }}) Valid() bool {
+  return tr != nil
+}
+
+// ColumnValuer returns the i-th column as value.
+func (tr *{{ $upper }}) ColumnValuer(i int) interface{} {
+  switch i {
+  {{ range $i, $col := .Table.Columns -}}
+  case {{ $i }}: return tr.{{ UpperCamel $col.ColumnName }}
+  {{ end -}}
+  default:
+    panic(fmt.Errorf("{{ $upper }}.ColumnValuer: %d is out of range", i))
+  }
+}
+
+// ColumnScanner returns the i-th column as scanner.
+func (tr *{{ $upper }}) ColumnScanner(i int) interface{} {
+  switch i {
+  {{ range $i, $col := .Table.Columns -}}
+  case {{ $i }}: return &tr.{{ UpperCamel $col.ColumnName }}
+  {{ end -}}
+  default:
+    panic(fmt.Errorf("{{ $upper }}.ColumnScanner: %d is out of range", i))
+  }
+}
+
+func (tr *null{{ $upper }}) ColumnScanners(dest *[]interface{}) {
+  // *tr = null{{ $upper }}{}
+  *dest = append(*dest,
+  {{ range $i, $col := .Table.Columns -}}
+  {{ if $col.Nullable -}}
+    &tr.ordinary.{{ UpperCamel $col.ColumnName }},
+  {{ else -}}
+    &tr.null{{ UpperCamel $col.ColumnName }},
+  {{ end -}}
+  {{ end -}}
+  )
+}
+
+func (tr *null{{ $upper }}) Ordinary() (*{{ $upper }}, error) {
+
+  var nullCol string
+
+  {{ range $col := .Table.Columns -}}
+  {{ if not $col.Nullable -}}
+  if !tr.null{{ UpperCamel $col.ColumnName }}.Valid {
+    nullCol = "{{ $col.ColumnName }}"
+    goto CheckNULL
+  }
+  tr.ordinary.{{ UpperCamel $col.ColumnName }} = *tr.null{{ UpperCamel $col.ColumnName }}.Ptr()
+
+  {{ end -}}
+  {{ end -}}
+
+  if false {
+    // Suppress "label CheckNULL defined and not used"
+    goto CheckNULL
+  }
+  return &tr.ordinary, nil
+
+CheckNULL:
+  if *tr == (null{{ $upper }}{}) {
+    return nil, nil
+  }
+  return nil, fmt.Errorf("{{ $name }}.%s can't be NULL", nullCol)
+}

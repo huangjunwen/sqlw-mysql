@@ -1,0 +1,215 @@
+package {{ .PackageName }}
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"gopkg.in/volatiletech/null.v6"
+	"gopkg.in/volatiletech/null.v6/convert"
+)
+
+// TableRow represents a table's row.
+type TableRow interface {
+	// TableMeta returns the table's meta information.
+	TableMeta() *TableMeta
+
+	// Valid returns true if this is a valid table row.
+	Valid() bool
+
+	// ColumnValuer returns the i-th column as valuer.
+	ColumnValuer(i int) interface{}
+
+	// ColumnScanner returns the i-th column as scanner. (e.g. pointer)
+	ColumnScanner(i int) interface{}
+}
+
+// TableMeta contains meta information of a database table.
+type TableMeta struct {
+	tableName       string
+	columnNames     []string       // column pos -> column name
+	columnPositions map[string]int // column name -> column pos
+	primaryColumns  []int          // len(primaryColumns) == 0 if the table has no primary key
+	autoIncColumn   int            // autoIncColumn == -1 if the table has no auto increment column
+	hasDefault      []bool         // len(hasDefault) == len(columnNames), true if the column has not NULL server side default
+}
+
+// TableMetaOption is used in creating TableMeta.
+type TableMetaOption func(*TableMeta)
+
+// OptColumnsWithDefault sets the columns that have not NULL server side default, including:
+//  - AUTO_INCREMENT
+//  - NOW()
+//  - Other not NULL constant defaults.
+func OptColumnsWithDefault(columnNames ...string) TableMetaOption {
+	return func(meta *TableMeta) {
+		for _, columnName := range columnNames {
+			pos, ok := meta.columnPositions[columnName]
+			if !ok {
+				panic(fmt.Errorf("Table `%s` has no column named `%s`", meta.tableName, columnName))
+			}
+			meta.hasDefault[pos] = true
+		}
+	}
+}
+
+// OptPrimaryColumns sets the primary key columns.
+func OptPrimaryColumns(columnNames ...string) TableMetaOption {
+	return func(meta *TableMeta) {
+		for _, columnName := range columnNames {
+			pos, ok := meta.columnPositions[columnName]
+			if !ok {
+				panic(fmt.Errorf("Table `%s` has no column named `%s`", meta.tableName, columnName))
+			}
+			meta.primaryColumns = append(meta.primaryColumns, pos)
+		}
+	}
+}
+
+// OptAutoIncColumn sets the auto increment column.
+func OptAutoIncColumn(columnName string) TableMetaOption {
+	return func(meta *TableMeta) {
+		pos, ok := meta.columnPositions[columnName]
+		if !ok {
+			panic(fmt.Errorf("Table `%s` has no column named `%s`", meta.tableName, columnName))
+		}
+		meta.autoIncColumn = pos
+	}
+}
+
+// NewTableMeta creates a new TableMeta.
+func NewTableMeta(tableName string, columnNames []string, opts ...TableMetaOption) *TableMeta {
+	meta := &TableMeta{
+		tableName:       tableName,
+		columnNames:     columnNames,
+		columnPositions: make(map[string]int),
+		hasDefault:      make([]bool, len(columnNames)),
+		primaryColumns:  nil,
+		autoIncColumn:   -1,
+	}
+	for i, columnName := range columnNames {
+		meta.columnPositions[columnName] = i
+	}
+	for _, opt := range opts {
+		opt(meta)
+	}
+	return meta
+}
+
+// TableName returns the table name.
+func (meta *TableMeta) TableName() string {
+	return meta.tableName
+}
+
+func (meta *TableMeta) Insert(ctx context.Context, e Execer, tr TableRow) error {
+
+	if tr.TableMeta() != meta {
+		panic(fmt.Errorf("TableMeta.Insert: Expect table `%s`'s row but got `%s`", meta.tableName, tr.TableMeta().tableName))
+	}
+
+	cols := []string{}
+	phs := []string{}
+	vals := []interface{}{}
+
+	// Choose columns to insert.
+	for i, col := range meta.columnNames {
+		val := tr.ColumnValuer(i)
+		if isZero(val) && meta.hasDefault[i] {
+			// Skip column value that is zero value and has not null default.
+			continue
+		}
+		cols = append(cols, col)
+		phs = append(phs, "?")
+		vals = append(vals, val)
+	}
+
+	// Construct query.
+	query := ""
+	if len(cols) == 0 {
+		query = fmt.Sprintf("INSERT INTO `%s` () VALUES ()", meta.tableName)
+	} else {
+		query = fmt.Sprintf("INSERT INTO `%s` (`%s`) VALUES (%s)", meta.tableName, strings.Join(cols, "`, `"), strings.Join(phs, ", "))
+	}
+
+	// Query.
+	result, err := e.ExecContext(ctx, query, vals)
+	if err != nil {
+		return err
+	}
+
+	// If has auto increment column and the column's value is zero.
+	if meta.autoIncColumn >= 0 && isZero(tr.ColumnValuer(meta.autoIncColumn)) {
+		lastInsertId, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+		if err := convert.ConvertAssign(tr.ColumnScanner(meta.autoIncColumn), lastInsertId); err != nil {
+			return err
+		}
+	}
+
+	return nil
+
+}
+
+func isZero(val interface{}) bool {
+
+	switch v := val.(type) {
+	case float32:
+		return v == 0
+	case float64:
+		return v == 0
+	case bool:
+		return v == false
+	case int8:
+		return v == 0
+	case int16:
+		return v == 0
+	case int32:
+		return v == 0
+	case int64:
+		return v == 0
+	case uint8:
+		return v == 0
+	case uint16:
+		return v == 0
+	case uint32:
+		return v == 0
+	case uint64:
+		return v == 0
+	case time.Time:
+		return v.IsZero()
+	case string:
+		return v == ""
+	case null.Float32:
+		return !v.Valid
+	case null.Float64:
+		return !v.Valid
+	case null.Bool:
+		return !v.Valid
+	case null.Int8:
+		return !v.Valid
+	case null.Int16:
+		return !v.Valid
+	case null.Int32:
+		return !v.Valid
+	case null.Int64:
+		return !v.Valid
+	case null.Uint8:
+		return !v.Valid
+	case null.Uint16:
+		return !v.Valid
+	case null.Uint32:
+		return !v.Valid
+	case null.Uint64:
+		return !v.Valid
+	case null.Time:
+		return !v.Valid
+	case null.String:
+		return !v.Valid
+	default:
+		panic(fmt.Errorf("isZero: Not support test for type %T", val))
+	}
+
+}
