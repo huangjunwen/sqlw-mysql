@@ -133,7 +133,7 @@ func (meta *TableMeta) Insert(ctx context.Context, e Execer, tr TableRow) error 
 	}
 
 	// Query.
-	result, err := e.ExecContext(ctx, query, vals)
+	result, err := e.ExecContext(ctx, query, vals...)
 	if err != nil {
 		return err
 	}
