@@ -2,6 +2,7 @@ package {{ .PackageName }}
 
 
 import (
+  "context"
 	"fmt"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 
 // Suppress not used errors.
 var (
+  _ = context.TODO
 	_ = fmt.Printf
 	_ = time.Now
 	_ = null.NewBool
@@ -78,6 +80,47 @@ func (tr *{{ $upper }}) ColumnScanner(i int) interface{} {
   default:
     panic(fmt.Errorf("{{ $upper }}.ColumnScanner: %d is out of range", i))
   }
+}
+
+// Insert this row. 
+// NOTE: This method does not modify content in `tr` except auto increment column (if exists).
+{{ if .Table.Primary.Valid -}}
+// Use Reload to get the newest data from database.
+{{ end -}}
+func (tr *{{ $upper }}) Insert(ctx context.Context, e Execer) error {
+  return tr.TableMeta().Insert(ctx, e, tr)
+}
+
+{{ if .Table.Primary.Valid -}}
+// Reload this row. `tr` should have valid primary key value(s). 
+// If lock is true, "FOR UPDATE" will be used.
+func (tr *{{ $upper }}) Reload(ctx context.Context, q Queryer, lock bool) error {
+  return tr.TableMeta().Select(ctx, q, tr, lock)
+}
+{{ end }}
+
+{{ if .Table.Primary.Valid -}}
+// Update this row. `tr` should have valid primary key value(s). 
+// Only columns with different values will be updated.
+// NOTE: This method does not modify content in `tr`/`newTr`. 
+// Use Reload to get the newest data from database.
+func (tr *{{ $upper }}) Update(ctx context.Context, e Execer, newTr *{{ $upper }}) error {
+  return tr.TableMeta().Update(ctx, e, tr, newTr)
+}
+{{ end }}
+
+{{ if .Table.Primary.Valid -}}
+// Delete this row. `tr` should have valid primary key value(s).
+func (tr *{{ $upper }}) Delete(ctx context.Context, e Execer) error {
+  return tr.TableMeta().Delete(ctx, e, tr)
+}
+{{ end }}
+
+// Copy this row.
+func (tr *{{ $upper }}) Copy() *{{ $upper }} {
+  ret := &{{ $upper }}{}
+  *ret = *tr
+  return ret
 }
 
 func (tr *null{{ $upper }}) ColumnScanners(dest *[]interface{}) {
