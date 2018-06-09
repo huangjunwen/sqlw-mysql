@@ -27,12 +27,23 @@ type TableRow interface {
 
 // TableMeta contains meta information of a database table.
 type TableMeta struct {
-	tableName       string
-	columnNames     []string       // column pos -> column name
-	columnPositions map[string]int // column name -> column pos
-	primaryColumns  []int          // len(primaryColumns) == 0 if the table has no primary key
-	autoIncColumn   int            // autoIncColumn == -1 if the table has no auto increment column
-	hasDefault      []bool         // len(hasDefault) == len(columnNames), true if the column has not NULL server side default
+	// Basic information.
+	tableName   string
+	columnNames []string // column pos -> column name
+
+	// Optinal information.
+	primaryColumnsPos []int  // len(primaryColumnsPos) == 0 if the table has no primary key
+	autoIncColumnPos  int    // autoIncColumnPos == -1 if the table has no auto increment column
+	hasDefault        []bool // len(hasDefault) == len(columnNames), true if the column has not NULL server side default
+
+	// Pre calculate information.
+	columnsPos map[string]int // column name -> column pos
+
+	// Post calculate information.
+	isPrimary   []bool // column pos -> true if the column is part of primary key
+	primaryCond string // "`id1`=? AND `id2`=? ..."
+	selectQuery string // "SELECT `col`, .... FROM `xxx` WHERE ..."
+	deleteQuery string // "DELETE FROM `xxx` WHERE ..."
 }
 
 // TableMetaOption is used in creating TableMeta.
@@ -45,7 +56,7 @@ type TableMetaOption func(*TableMeta)
 func OptColumnsWithDefault(columnNames ...string) TableMetaOption {
 	return func(meta *TableMeta) {
 		for _, columnName := range columnNames {
-			pos, ok := meta.columnPositions[columnName]
+			pos, ok := meta.columnsPos[columnName]
 			if !ok {
 				panic(fmt.Errorf("Table `%s` has no column named `%s`", meta.tableName, columnName))
 			}
@@ -58,11 +69,11 @@ func OptColumnsWithDefault(columnNames ...string) TableMetaOption {
 func OptPrimaryColumns(columnNames ...string) TableMetaOption {
 	return func(meta *TableMeta) {
 		for _, columnName := range columnNames {
-			pos, ok := meta.columnPositions[columnName]
+			pos, ok := meta.columnsPos[columnName]
 			if !ok {
 				panic(fmt.Errorf("Table `%s` has no column named `%s`", meta.tableName, columnName))
 			}
-			meta.primaryColumns = append(meta.primaryColumns, pos)
+			meta.primaryColumnsPos = append(meta.primaryColumnsPos, pos)
 		}
 	}
 }
@@ -70,30 +81,32 @@ func OptPrimaryColumns(columnNames ...string) TableMetaOption {
 // OptAutoIncColumn sets the auto increment column.
 func OptAutoIncColumn(columnName string) TableMetaOption {
 	return func(meta *TableMeta) {
-		pos, ok := meta.columnPositions[columnName]
+		pos, ok := meta.columnsPos[columnName]
 		if !ok {
 			panic(fmt.Errorf("Table `%s` has no column named `%s`", meta.tableName, columnName))
 		}
-		meta.autoIncColumn = pos
+		meta.autoIncColumnPos = pos
 	}
 }
 
 // NewTableMeta creates a new TableMeta.
 func NewTableMeta(tableName string, columnNames []string, opts ...TableMetaOption) *TableMeta {
 	meta := &TableMeta{
-		tableName:       tableName,
-		columnNames:     columnNames,
-		columnPositions: make(map[string]int),
-		hasDefault:      make([]bool, len(columnNames)),
-		primaryColumns:  nil,
-		autoIncColumn:   -1,
+		tableName:         tableName,
+		columnNames:       columnNames,
+		primaryColumnsPos: nil,
+		autoIncColumnPos:  -1,
+		hasDefault:        make([]bool, len(columnNames)), // All false
+		columnsPos:        make(map[string]int),
+		isPrimary:         make([]bool, len(columnNames)), // All false
 	}
 	for i, columnName := range columnNames {
-		meta.columnPositions[columnName] = i
+		meta.columnsPos[columnName] = i
 	}
 	for _, opt := range opts {
 		opt(meta)
 	}
+	meta.postCalculate()
 	return meta
 }
 
@@ -102,11 +115,12 @@ func (meta *TableMeta) TableName() string {
 	return meta.tableName
 }
 
+// Insert a row into table. Rule:
+//   - If column has non zero value, then this column will be inserted.
+//   - Othewise if the column has no server-side default, this column will be inserted.
 func (meta *TableMeta) Insert(ctx context.Context, e Execer, tr TableRow) error {
 
-	if tr.TableMeta() != meta {
-		panic(fmt.Errorf("TableMeta.Insert: Expect table `%s`'s row but got `%s`", meta.tableName, tr.TableMeta().tableName))
-	}
+	meta.checkTableMeta(tr)
 
 	cols := []string{}
 	phs := []string{}
@@ -139,17 +153,167 @@ func (meta *TableMeta) Insert(ctx context.Context, e Execer, tr TableRow) error 
 	}
 
 	// If has auto increment column and the column's value is zero.
-	if meta.autoIncColumn >= 0 && isZero(tr.ColumnValuer(meta.autoIncColumn)) {
+	if meta.autoIncColumnPos >= 0 && isZero(tr.ColumnValuer(meta.autoIncColumnPos)) {
 		lastInsertId, err := result.LastInsertId()
 		if err != nil {
 			return err
 		}
-		if err := convert.ConvertAssign(tr.ColumnScanner(meta.autoIncColumn), lastInsertId); err != nil {
+		if err := convert.ConvertAssign(tr.ColumnScanner(meta.autoIncColumnPos), lastInsertId); err != nil {
 			return err
 		}
 	}
 
 	return nil
+
+}
+
+// Update a row in table. The table must have primary key, otherwise a panic will be raised. Rule:
+//   - Only columns that have different values will be updated.
+func (meta *TableMeta) Update(ctx context.Context, e Execer, tr, newTr TableRow) error {
+
+	meta.checkTableMeta(tr)
+	meta.checkTableMeta(newTr)
+
+	// Get primary values.
+	primVals, err := meta.primaryVals(tr)
+	if err != nil {
+		return err
+	}
+
+	asgmts := []string{}
+	asgmtsVals := []interface{}{}
+
+	// Choose columns to update.
+	for i, col := range meta.columnNames {
+
+		if meta.isPrimary[i] {
+			// Skip primary column.
+			continue
+		}
+
+		val := tr.ColumnValuer(i)
+		newVal := newTr.ColumnValuer(i)
+		if val == newVal {
+			// Skip if no difference.
+			continue
+		}
+
+		asgmts = append(asgmts, fmt.Sprintf("`%s`=?", col))
+		asgmtsVals = append(asgmtsVals, newVal)
+
+	}
+
+	// Nothing to update.
+	if len(asgmtsVals) == 0 {
+		return nil
+	}
+
+	// Construct query.
+	query := fmt.Sprintf("UPDATE `%s` SET %s WHERE %s", meta.tableName, strings.Join(asgmts, ", "), meta.primaryCond)
+
+	// Query.
+	// NOTE: The meaning of affected rows is ambiguous so just discard it.
+	_, err = e.ExecContext(ctx, query, append(asgmtsVals, primVals...)...)
+	return err
+
+}
+
+// Delete a row in table. The table must have primary key, otherwise a panic will be raised.
+func (meta *TableMeta) Delete(ctx context.Context, e Execer, tr TableRow) error {
+
+	meta.checkTableMeta(tr)
+
+	// Get primary values.
+	primVals, err := meta.primaryVals(tr)
+	if err != nil {
+		return err
+	}
+
+	// Query.
+	_, err = e.ExecContext(ctx, meta.deleteQuery, primVals...)
+	return err
+}
+
+// Select a row in table. The table must have primary key, otherwise a panic will be raised.
+// It returns no error if a row is successfully found and returned.
+func (meta *TableMeta) Select(ctx context.Context, q Queryer, tr TableRow, lock bool) error {
+
+	meta.checkTableMeta(tr)
+
+	// Get primary values.
+	primVals, err := meta.primaryVals(tr)
+	if err != nil {
+		return err
+	}
+
+	// Construct query.
+	query := meta.selectQuery
+	if lock {
+		query += " FOR UPDATE"
+	}
+
+	// Prepare result.
+	result := make([]interface{}, 0, len(meta.columnNames))
+	for i, _ := range meta.columnNames {
+		result = append(result, tr.ColumnScanner(i))
+	}
+
+	// Query.
+	row := q.QueryRowContext(ctx, query, primVals...)
+	return row.Scan(result...)
+
+}
+
+func (meta *TableMeta) checkTableMeta(tr TableRow) {
+	if tr.TableMeta() != meta {
+		panic(fmt.Errorf("Expect table `%s`'s row but got `%s`", meta.tableName, tr.TableMeta().tableName))
+	}
+}
+
+func (meta *TableMeta) primaryVals(tr TableRow) ([]interface{}, error) {
+	meta.checkTableMeta(tr)
+	if len(meta.primaryColumnsPos) == 0 {
+		panic(fmt.Errorf("Table `%s` has no primary key", meta.tableName))
+	}
+
+	vals := []interface{}{}
+	for _, pos := range meta.primaryColumnsPos {
+		val := tr.ColumnValuer(pos)
+		if isZero(val) {
+			return nil, fmt.Errorf("Table `%s` row has null primary key", meta.tableName)
+		}
+		vals = append(vals, val)
+	}
+
+	return vals, nil
+}
+
+func (meta *TableMeta) postCalculate() {
+	if len(meta.primaryColumnsPos) == 0 {
+		return
+	}
+
+	// isPrimary
+	for _, pos := range meta.primaryColumnsPos {
+		meta.isPrimary[pos] = true
+	}
+
+	// primaryCond
+	conds := []string{}
+	for _, pos := range meta.primaryColumnsPos {
+		conds = append(conds, fmt.Sprintf("`%s`=?", meta.columnNames[pos]))
+	}
+	meta.primaryCond = strings.Join(conds, " AND ")
+
+	// selectQuery
+	cols := []string{}
+	for _, columnName := range meta.columnNames {
+		cols = append(cols, fmt.Sprintf("`%s`", columnName))
+	}
+	meta.selectQuery = fmt.Sprintf("SELECT %s FROM `%s` WHERE %s", strings.Join(cols, ", "), meta.tableName, meta.primaryCond)
+
+	// deleteQuery
+	meta.deleteQuery = fmt.Sprintf("DELETE FROM `%s` WHERE %s", meta.tableName, meta.primaryCond)
 
 }
 
