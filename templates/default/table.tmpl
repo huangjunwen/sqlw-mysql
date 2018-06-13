@@ -139,16 +139,11 @@ func (tr *{{ $upper }}) ColumnPointers(dest *[]interface{}, pos ...int) []interf
 
 {{ if .Table.Primary.Valid -}}
 // PrimaryValue implements `TableRowWithPrimary` interface.
-// It returns nil if `tr` is nil or primary column(s) have zero value.  
+// It returns nil if `tr` is nil.  
 func (tr *{{ $upper }}) PrimaryValue() interface{} {
   if tr == nil {
     return nil
   }
-  {{ range $col := .Table.Primary.Columns }}
-  if isZero(tr.{{ UpperCamel $col.ColumnName }}) {
-    return nil
-  }
-  {{ end }}
   return {{ $lower }}PrimaryValue{
     {{ range $col := .Table.Primary.Columns -}}
     {{ UpperCamel $col.ColumnName }}: tr.{{ UpperCamel $col.ColumnName }},
@@ -163,37 +158,36 @@ func (tr *{{ $upper }}) PrimaryValue() interface{} {
 // Use Reload to get the newest data from database.
 {{ end -}}
 func (tr *{{ $upper }}) Insert(ctx context.Context, e Execer) error {
-  return Insert(ctx, e, tr)
+  return InsertTR(ctx, e, tr)
 }
 
 {{ if .Table.Primary.Valid -}}
-// Reload is used to reload this row from table. `tr` should have valid primary value.
+// Reload is used to reload this row from table.
 func (tr *{{ $upper }}) Reload(ctx context.Context, q Queryer) error {
-  return Select(ctx, q, tr, false)
+  return SelectTR(ctx, q, tr, false)
 }
 {{ end }}
 
 {{ if .Table.Primary.Valid -}}
-// ReloadWithLock is used to reload this row with lock from table. `tr` should have valid primary value.
+// ReloadWithLock is used to reload this row with lock from table.
 func (tr *{{ $upper }}) ReloadWithLock(ctx context.Context, q Queryer) error {
-  return Select(ctx, q, tr, true)
+  return SelectTR(ctx, q, tr, true)
 }
 {{ end }}
 
 {{ if .Table.Primary.Valid -}}
-// Update is used to update this row in table. `tr` should have valid primary key value. 
-// Only columns with different values will be updated.
+// Update is used to update this row in table. Only columns with different values will be updated.
 // NOTE: This method does not modify content in `tr`/`newTr`. 
 // Use Reload to get the newest data from database.
 func (tr *{{ $upper }}) Update(ctx context.Context, e Execer, newTr *{{ $upper }}) error {
-  return Update(ctx, e, tr, newTr)
+  return UpdateTR(ctx, e, tr, newTr)
 }
 {{ end }}
 
 {{ if .Table.Primary.Valid -}}
-// Delete is used to delete this row from table. `tr` should have valid primary key value.
+// Delete is used to delete this row from table.
 func (tr *{{ $upper }}) Delete(ctx context.Context, e Execer) error {
-  return Delete(ctx, e, tr)
+  return DeleteTR(ctx, e, tr)
 }
 {{ end }}
 
@@ -203,6 +197,23 @@ func (tr *{{ $upper }}) Copy() *{{ $upper }} {
   *ret = *tr
   return ret
 }
+
+{{ range $index := .Table.Indices -}}
+{{ if $index.IsUnique -}}
+// {{ $upper }}By{{ UpperCamel $index.IndexName }} is used to select `{{ $name }}` row by key `{{ $index.IndexName }}`.
+func {{ $upper }}By{{ UpperCamel $index.IndexName }}(ctx context.Context, q Queryer{{ range $col := $index.Columns }}, {{ LowerCamel $col.ColumnName }} {{ NotNullScanType $col }}{{ end }}, lock bool) (*{{ $upper }}, error){
+  tr := {{ $upper }}{}
+  if err := SelectTRCond(ctx, q, &tr, lock, "1{{ range $col := $index.Columns }} AND `{{ $col.ColumnName }}`=?{{ end }}",
+    {{- range $col := $index.Columns -}}
+    {{ LowerCamel $col.ColumnName }},
+    {{- end -}}
+  ); err != nil {
+    return nil, err
+  }
+  return &tr, nil
+}
+{{ end -}}
+{{ end }}
 
 func (tr *null{{ $upper }}) ColumnPointers(dest *[]interface{}) {
   *tr = null{{ $upper }}{}

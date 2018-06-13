@@ -25,10 +25,10 @@ type TableMeta struct {
 	columnsPos map[string]int // column name -> column pos
 
 	// Post calculate information.
-	isPrimary   []bool // column pos -> true if the column is part of primary key
-	primaryCond string // "`id1`=? AND `id2`=? ..."
-	selectQuery string // "SELECT `col`, .... FROM `xxx` WHERE ..."
-	deleteQuery string // "DELETE FROM `xxx` WHERE ..."
+	isPrimary            []bool // column pos -> true if the column is part of primary key
+	primaryCond          string // "`id1`=? AND `id2`=? ..."
+	selectQuery          string // "SELECT `col`, .... FROM `xxx`"
+	deleteByPrimaryQuery string // "DELETE FROM `xxx` WHERE `id`=? AND ..."
 }
 
 // TableMetaOption is used in creating TableMeta.
@@ -85,19 +85,20 @@ func NewTableMeta(tableName string, columnNames []string, opts ...TableMetaOptio
 		columnsPos:        make(map[string]int),
 		isPrimary:         make([]bool, len(columnNames)), // All false
 	}
+
+	// --- Pre calculate ---
 	for i, columnName := range columnNames {
 		meta.columnsPos[columnName] = i
 	}
+
+	// --- Apply options ---
 	for _, opt := range opts {
 		opt(meta)
 	}
-	meta.postCalculate()
-	return meta
-}
 
-func (meta *TableMeta) postCalculate() {
+	// --- Post calculate ---
 	if len(meta.primaryColumnsPos) == 0 {
-		return
+		return meta
 	}
 
 	// isPrimary
@@ -117,10 +118,12 @@ func (meta *TableMeta) postCalculate() {
 	for _, columnName := range meta.columnNames {
 		cols = append(cols, fmt.Sprintf("`%s`", columnName))
 	}
-	meta.selectQuery = fmt.Sprintf("SELECT %s FROM `%s` WHERE %s", strings.Join(cols, ", "), meta.tableName, meta.primaryCond)
+	meta.selectQuery = fmt.Sprintf("SELECT %s FROM `%s`", strings.Join(cols, ", "), meta.tableName)
 
 	// deleteQuery
-	meta.deleteQuery = fmt.Sprintf("DELETE FROM `%s` WHERE %s", meta.tableName, meta.primaryCond)
+	meta.deleteByPrimaryQuery = fmt.Sprintf("DELETE FROM `%s` WHERE %s", meta.tableName, meta.primaryCond)
+
+	return meta
 
 }
 
@@ -129,10 +132,10 @@ func (meta *TableMeta) TableName() string {
 	return meta.tableName
 }
 
-// Insert inserts a row into table. `tr` must be valid. Rules:
+// InsertTR inserts `tr` into table. `tr` must be valid. Rules:
 //   - If column has non zero value, then this column will be inserted.
-//   - Othewise if the column has no server-side default, this column will be inserted.
-func Insert(ctx context.Context, e Execer, tr TableRow) error {
+//   - Othewise if the column doesn't have not NULL default, this column will be inserted.
+func InsertTR(ctx context.Context, e Execer, tr TableRow) error {
 
 	meta := tr.TableMeta()
 	if !tr.Valid() {
@@ -185,12 +188,12 @@ func Insert(ctx context.Context, e Execer, tr TableRow) error {
 
 }
 
-// Update updates a row in table. `tr`/`newTr` must be valid and have non-zero primary key values.
+// UpdateTR updates `tr` to `newTr` in table by its primary key. `tr`/`newTr` must be valid.
 // Rules:
 //   - Only columns that have different values will be updated.
-func Update(ctx context.Context, e Execer, tr, newTr TableRowWithPrimary) error {
+func UpdateTR(ctx context.Context, e Execer, tr, newTr TableRowWithPrimary) error {
 
-	// Check the table rows' validity and primary key's validity.
+	// Check the table rows' validity.
 	meta := tr.TableMeta()
 	if meta != newTr.TableMeta() {
 		return fmt.Errorf("Update: tr/newTr must be rows of the same table")
@@ -198,10 +201,8 @@ func Update(ctx context.Context, e Execer, tr, newTr TableRowWithPrimary) error 
 	if !tr.Valid() || !newTr.Valid() {
 		return fmt.Errorf("Update: row(s) is(are) invalid")
 	}
-	if tr.PrimaryValue() == nil {
-		return fmt.Errorf("Update: tr must have valid and non-zero primary key values")
-	}
 
+	// Get values.
 	vals := tr.ColumnValues(nil)
 	newVals := newTr.ColumnValues(nil)
 
@@ -236,65 +237,73 @@ func Update(ctx context.Context, e Execer, tr, newTr TableRowWithPrimary) error 
 	// Construct query.
 	query := fmt.Sprintf("UPDATE `%s` SET %s WHERE %s", meta.tableName, strings.Join(asgmts, ", "), meta.primaryCond)
 
-	// Add primary column values.
+	// Append primary value.
 	tr.ColumnValues(&args, meta.primaryColumnsPos...)
 
 	// Query.
-	// NOTE: The meaning of affected rows is ambiguous so just discard it.
 	_, err := e.ExecContext(ctx, query, args...)
 	return err
 
 }
 
-// Delete deletes a row in table. `tr` must be valid and have non-zero primary key values.
-func Delete(ctx context.Context, e Execer, tr TableRowWithPrimary) error {
+// DeleteTR deletes `tr` in table by its primary key. `tr` must be valid.
+func DeleteTR(ctx context.Context, e Execer, tr TableRowWithPrimary) error {
 
-	// Check the table row's validity and its primary key's validity.
+	// Check the table row's validity.
 	meta := tr.TableMeta()
 	if !tr.Valid() {
 		return fmt.Errorf("Delete: row is invalid")
 	}
-	if tr.PrimaryValue() == nil {
-		return fmt.Errorf("Delete: tr must have valid and non-zero primary key values")
-	}
 
 	// Prepare args.
-	args := []interface{}{}
-	tr.ColumnValues(&args, meta.primaryColumnsPos...)
+	args := tr.ColumnValues(nil, meta.primaryColumnsPos...)
 
 	// Query.
-	_, err := e.ExecContext(ctx, meta.deleteQuery, args...)
+	_, err := e.ExecContext(ctx, meta.deleteByPrimaryQuery, args...)
 	return err
 }
 
-// Select selects a row in table. `tr` must be valid and have non-zero primary key values.
+// SelectTR selects `tr` from table by its primary key. `tr` must be valid.
+// If `lock` is true, then "SELECT ... FOR UPDATE" will be used.
 // It returns no error if a row is successfully found and returned.
-func Select(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock bool) error {
+func SelectTR(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock bool) error {
+	return SelectTRCond(ctx, q, tr, lock, "")
+}
 
-	// Check the table row's validity and its primary key's validity.
+// SelectTRCond selects `tr` from table by custom condition. `tr` must be valid.
+// If `lock` is true, then "SELECT ... FOR UPDATE" will be used.
+// If `cond` == "" then it's the same as SelectTR.
+// It returns no error if a row is successfully found and returned.
+func SelectTRCond(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock bool, cond string, args ...interface{}) error {
+
+	// Check the table row's validity.
 	meta := tr.TableMeta()
 	if !tr.Valid() {
-		return fmt.Errorf("Select: row is invalid")
+		return fmt.Errorf("SelectOne: row is invalid")
 	}
-	if tr.PrimaryValue() == nil {
-		return fmt.Errorf("Select: tr must have valid and non-zero primary key values")
+
+	// If cond and args are empty, take them from tr.
+	if cond == "" {
+		if len(args) != 0 {
+			return fmt.Errorf("SelectOne: cond is empty but have args")
+		}
+		cond = meta.primaryCond
+		tr.ColumnValues(&args, meta.primaryColumnsPos...)
 	}
 
 	// Construct query.
-	query := meta.selectQuery
+	query := fmt.Sprintf("%s WHERE %s", meta.selectQuery, cond)
 	if lock {
 		query += " FOR UPDATE"
 	}
 
-	// Prepare args and result.
-	args := []interface{}{}
+	// Prepare result.
 	result := []interface{}{}
-	tr.ColumnValues(&args, meta.primaryColumnsPos...)
 	tr.ColumnPointers(&result)
 
 	// Query.
 	row := q.QueryRowContext(ctx, query, args...)
-	return row.Scan(result...)
+	return row.Scan(result)
 
 }
 

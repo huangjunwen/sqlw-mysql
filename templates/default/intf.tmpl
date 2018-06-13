@@ -45,6 +45,5 @@ type TableRowWithPrimary interface {
 
 	// PrimaryValue returns the primary key value of this row.
 	// The returned value is comparable by values.
-	// If the row is invalid or the primary key values are zero values, then nil is returned.
 	PrimaryValue() interface{}
 }
