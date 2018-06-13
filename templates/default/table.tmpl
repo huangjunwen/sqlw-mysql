@@ -3,18 +3,18 @@ package {{ .PackageName }}
 
 import (
   "context"
-	"fmt"
-	"time"
+  "fmt"
+  "time"
 
-	"gopkg.in/volatiletech/null.v6"
+  "gopkg.in/volatiletech/null.v6"
 )
 
 // Suppress not used errors.
 var (
   _ = context.Background
-	_ = fmt.Printf
-	_ = time.Now
-	_ = null.NewBool
+  _ = fmt.Printf
+  _ = time.Now
+  _ = null.NewBool
 )
 
 {{ $name := .Table.TableName }}
@@ -24,7 +24,7 @@ var (
 // {{ $upper }} represents a row of table `{{ $name }}`.
 type {{ $upper }} struct {
   {{ range $col := .Table.Columns -}}
-	{{ UpperCamel $col.ColumnName }} {{ ScanType $col }} `json:"{{ $col.ColumnName }}" db:"{{ $col.ColumnName }}"`
+  {{ UpperCamel $col.ColumnName }} {{ ScanType $col }} `json:"{{ $col.ColumnName }}" db:"{{ $col.ColumnName }}"`
   {{ end -}}
 }
 
@@ -32,7 +32,7 @@ type {{ $upper }} struct {
 type null{{ $upper }} struct {
   ordinary {{ $upper }}
   {{ range $col := .Table.Columns -}}{{ if not $col.Nullable -}}
-	null{{ UpperCamel $col.ColumnName }} {{ NullScanType $col }}
+  null{{ UpperCamel $col.ColumnName }} {{ NullScanType $col }}
   {{ end -}}{{ end -}}
 }
 

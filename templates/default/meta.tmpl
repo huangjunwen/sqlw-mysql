@@ -1,34 +1,34 @@
 package {{ .PackageName }}
 
 import (
-	"context"
-	"fmt"
-	"strings"
-	"time"
+  "context"
+  "fmt"
+  "strings"
+  "time"
 
-	"gopkg.in/volatiletech/null.v6"
-	"gopkg.in/volatiletech/null.v6/convert"
+  "gopkg.in/volatiletech/null.v6"
+  "gopkg.in/volatiletech/null.v6/convert"
 )
 
 // TableMeta contains meta information of a database table.
 type TableMeta struct {
-	// Basic information.
-	tableName   string
-	columnNames []string // column pos -> column name
+  // Basic information.
+  tableName   string
+  columnNames []string // column pos -> column name
 
-	// Optinal information.
-	primaryColumnsPos []int  // len(primaryColumnsPos) == 0 if the table has no primary key
-	autoIncColumnPos  int    // autoIncColumnPos == -1 if the table has no auto increment column
-	hasDefault        []bool // len(hasDefault) == len(columnNames), true if the column has not NULL server side default
+  // Optinal information.
+  primaryColumnsPos []int  // len(primaryColumnsPos) == 0 if the table has no primary key
+  autoIncColumnPos  int    // autoIncColumnPos == -1 if the table has no auto increment column
+  hasDefault        []bool // len(hasDefault) == len(columnNames), true if the column has not NULL server side default
 
-	// Pre calculate information.
-	columnsPos map[string]int // column name -> column pos
+  // Pre calculate information.
+  columnsPos map[string]int // column name -> column pos
 
-	// Post calculate information.
-	isPrimary            []bool // column pos -> true if the column is part of primary key
-	primaryCond          string // "`id1`=? AND `id2`=? ..."
-	selectQuery          string // "SELECT `col`, .... FROM `xxx`"
-	deleteByPrimaryQuery string // "DELETE FROM `xxx` WHERE `id`=? AND ..."
+  // Post calculate information.
+  isPrimary            []bool // column pos -> true if the column is part of primary key
+  primaryCond          string // "`id1`=? AND `id2`=? ..."
+  selectQuery          string // "SELECT `col`, .... FROM `xxx`"
+  deleteByPrimaryQuery string // "DELETE FROM `xxx` WHERE `id`=? AND ..."
 }
 
 // TableMetaOption is used in creating TableMeta.
@@ -39,97 +39,97 @@ type TableMetaOption func(*TableMeta)
 //  - NOW()
 //  - Other not NULL constant defaults.
 func OptColumnsWithDefault(columnNames ...string) TableMetaOption {
-	return func(meta *TableMeta) {
-		for _, columnName := range columnNames {
-			pos, ok := meta.columnsPos[columnName]
-			if !ok {
-				panic(fmt.Errorf("Table `%s` has no column named `%s`", meta.tableName, columnName))
-			}
-			meta.hasDefault[pos] = true
-		}
-	}
+  return func(meta *TableMeta) {
+    for _, columnName := range columnNames {
+      pos, ok := meta.columnsPos[columnName]
+      if !ok {
+        panic(fmt.Errorf("Table `%s` has no column named `%s`", meta.tableName, columnName))
+      }
+      meta.hasDefault[pos] = true
+    }
+  }
 }
 
 // OptPrimaryColumns sets the primary key columns.
 func OptPrimaryColumns(columnNames ...string) TableMetaOption {
-	return func(meta *TableMeta) {
-		for _, columnName := range columnNames {
-			pos, ok := meta.columnsPos[columnName]
-			if !ok {
-				panic(fmt.Errorf("Table `%s` has no column named `%s`", meta.tableName, columnName))
-			}
-			meta.primaryColumnsPos = append(meta.primaryColumnsPos, pos)
-		}
-	}
+  return func(meta *TableMeta) {
+    for _, columnName := range columnNames {
+      pos, ok := meta.columnsPos[columnName]
+      if !ok {
+        panic(fmt.Errorf("Table `%s` has no column named `%s`", meta.tableName, columnName))
+      }
+      meta.primaryColumnsPos = append(meta.primaryColumnsPos, pos)
+    }
+  }
 }
 
 // OptAutoIncColumn sets the auto increment column.
 func OptAutoIncColumn(columnName string) TableMetaOption {
-	return func(meta *TableMeta) {
-		pos, ok := meta.columnsPos[columnName]
-		if !ok {
-			panic(fmt.Errorf("Table `%s` has no column named `%s`", meta.tableName, columnName))
-		}
-		meta.autoIncColumnPos = pos
-	}
+  return func(meta *TableMeta) {
+    pos, ok := meta.columnsPos[columnName]
+    if !ok {
+      panic(fmt.Errorf("Table `%s` has no column named `%s`", meta.tableName, columnName))
+    }
+    meta.autoIncColumnPos = pos
+  }
 }
 
 // NewTableMeta creates a new TableMeta.
 func NewTableMeta(tableName string, columnNames []string, opts ...TableMetaOption) *TableMeta {
-	meta := &TableMeta{
-		tableName:         tableName,
-		columnNames:       columnNames,
-		primaryColumnsPos: nil,
-		autoIncColumnPos:  -1,
-		hasDefault:        make([]bool, len(columnNames)), // All false
-		columnsPos:        make(map[string]int),
-		isPrimary:         make([]bool, len(columnNames)), // All false
-	}
+  meta := &TableMeta{
+    tableName:         tableName,
+    columnNames:       columnNames,
+    primaryColumnsPos: nil,
+    autoIncColumnPos:  -1,
+    hasDefault:        make([]bool, len(columnNames)), // All false
+    columnsPos:        make(map[string]int),
+    isPrimary:         make([]bool, len(columnNames)), // All false
+  }
 
-	// --- Pre calculate ---
-	for i, columnName := range columnNames {
-		meta.columnsPos[columnName] = i
-	}
+  // --- Pre calculate ---
+  for i, columnName := range columnNames {
+    meta.columnsPos[columnName] = i
+  }
 
-	// --- Apply options ---
-	for _, opt := range opts {
-		opt(meta)
-	}
+  // --- Apply options ---
+  for _, opt := range opts {
+    opt(meta)
+  }
 
-	// --- Post calculate ---
-	if len(meta.primaryColumnsPos) == 0 {
-		return meta
-	}
+  // --- Post calculate ---
+  if len(meta.primaryColumnsPos) == 0 {
+    return meta
+  }
 
-	// isPrimary
-	for _, pos := range meta.primaryColumnsPos {
-		meta.isPrimary[pos] = true
-	}
+  // isPrimary
+  for _, pos := range meta.primaryColumnsPos {
+    meta.isPrimary[pos] = true
+  }
 
-	// primaryCond
-	conds := []string{}
-	for _, pos := range meta.primaryColumnsPos {
-		conds = append(conds, fmt.Sprintf("`%s`=?", meta.columnNames[pos]))
-	}
-	meta.primaryCond = strings.Join(conds, " AND ")
+  // primaryCond
+  conds := []string{}
+  for _, pos := range meta.primaryColumnsPos {
+    conds = append(conds, fmt.Sprintf("`%s`=?", meta.columnNames[pos]))
+  }
+  meta.primaryCond = strings.Join(conds, " AND ")
 
-	// selectQuery
-	cols := []string{}
-	for _, columnName := range meta.columnNames {
-		cols = append(cols, fmt.Sprintf("`%s`", columnName))
-	}
-	meta.selectQuery = fmt.Sprintf("SELECT %s FROM `%s`", strings.Join(cols, ", "), meta.tableName)
+  // selectQuery
+  cols := []string{}
+  for _, columnName := range meta.columnNames {
+    cols = append(cols, fmt.Sprintf("`%s`", columnName))
+  }
+  meta.selectQuery = fmt.Sprintf("SELECT %s FROM `%s`", strings.Join(cols, ", "), meta.tableName)
 
-	// deleteQuery
-	meta.deleteByPrimaryQuery = fmt.Sprintf("DELETE FROM `%s` WHERE %s", meta.tableName, meta.primaryCond)
+  // deleteQuery
+  meta.deleteByPrimaryQuery = fmt.Sprintf("DELETE FROM `%s` WHERE %s", meta.tableName, meta.primaryCond)
 
-	return meta
+  return meta
 
 }
 
 // TableName returns the table name.
 func (meta *TableMeta) TableName() string {
-	return meta.tableName
+  return meta.tableName
 }
 
 // InsertTR inserts `tr` into table. `tr` must be valid. Rules:
@@ -137,54 +137,54 @@ func (meta *TableMeta) TableName() string {
 //   - Othewise if the column doesn't have not NULL default, this column will be inserted.
 func InsertTR(ctx context.Context, e Execer, tr TableRow) error {
 
-	meta := tr.TableMeta()
-	if !tr.Valid() {
-		return fmt.Errorf("Insert: row is invalid")
-	}
+  meta := tr.TableMeta()
+  if !tr.Valid() {
+    return fmt.Errorf("Insert: row is invalid")
+  }
 
-	vals := tr.ColumnValues(nil)
-	cols := []string{}
-	phs := []string{}
-	args := []interface{}{}
+  vals := tr.ColumnValues(nil)
+  cols := []string{}
+  phs := []string{}
+  args := []interface{}{}
 
-	// Choose columns to insert.
-	for i, col := range meta.columnNames {
-		val := vals[i]
-		if isZero(val) && meta.hasDefault[i] {
-			// Skip column value that is zero value and has not null default.
-			continue
-		}
-		cols = append(cols, col)
-		phs = append(phs, "?")
-		args = append(args, val)
-	}
+  // Choose columns to insert.
+  for i, col := range meta.columnNames {
+    val := vals[i]
+    if isZero(val) && meta.hasDefault[i] {
+      // Skip column value that is zero value and has not null default.
+      continue
+    }
+    cols = append(cols, col)
+    phs = append(phs, "?")
+    args = append(args, val)
+  }
 
-	// Construct query.
-	query := ""
-	if len(cols) == 0 {
-		query = fmt.Sprintf("INSERT INTO `%s` () VALUES ()", meta.tableName)
-	} else {
-		query = fmt.Sprintf("INSERT INTO `%s` (`%s`) VALUES (%s)", meta.tableName, strings.Join(cols, "`, `"), strings.Join(phs, ", "))
-	}
+  // Construct query.
+  query := ""
+  if len(cols) == 0 {
+    query = fmt.Sprintf("INSERT INTO `%s` () VALUES ()", meta.tableName)
+  } else {
+    query = fmt.Sprintf("INSERT INTO `%s` (`%s`) VALUES (%s)", meta.tableName, strings.Join(cols, "`, `"), strings.Join(phs, ", "))
+  }
 
-	// Query.
-	result, err := e.ExecContext(ctx, query, args...)
-	if err != nil {
-		return err
-	}
+  // Query.
+  result, err := e.ExecContext(ctx, query, args...)
+  if err != nil {
+    return err
+  }
 
-	// If has auto increment column and the column's value is zero.
-	if meta.autoIncColumnPos >= 0 && isZero(vals[meta.autoIncColumnPos]) {
-		lastInsertId, err := result.LastInsertId()
-		if err != nil {
-			return err
-		}
-		if err := convert.ConvertAssign(tr.ColumnPointers(nil, meta.autoIncColumnPos)[0], lastInsertId); err != nil {
-			return err
-		}
-	}
+  // If has auto increment column and the column's value is zero.
+  if meta.autoIncColumnPos >= 0 && isZero(vals[meta.autoIncColumnPos]) {
+    lastInsertId, err := result.LastInsertId()
+    if err != nil {
+      return err
+    }
+    if err := convert.ConvertAssign(tr.ColumnPointers(nil, meta.autoIncColumnPos)[0], lastInsertId); err != nil {
+      return err
+    }
+  }
 
-	return nil
+  return nil
 
 }
 
@@ -193,81 +193,81 @@ func InsertTR(ctx context.Context, e Execer, tr TableRow) error {
 //   - Only columns that have different values will be updated.
 func UpdateTR(ctx context.Context, e Execer, tr, newTr TableRowWithPrimary) error {
 
-	// Check the table rows' validity.
-	meta := tr.TableMeta()
-	if meta != newTr.TableMeta() {
-		return fmt.Errorf("Update: tr/newTr must be rows of the same table")
-	}
-	if !tr.Valid() || !newTr.Valid() {
-		return fmt.Errorf("Update: row(s) is(are) invalid")
-	}
+  // Check the table rows' validity.
+  meta := tr.TableMeta()
+  if meta != newTr.TableMeta() {
+    return fmt.Errorf("Update: tr/newTr must be rows of the same table")
+  }
+  if !tr.Valid() || !newTr.Valid() {
+    return fmt.Errorf("Update: row(s) is(are) invalid")
+  }
 
-	// Get values.
-	vals := tr.ColumnValues(nil)
-	newVals := newTr.ColumnValues(nil)
+  // Get values.
+  vals := tr.ColumnValues(nil)
+  newVals := newTr.ColumnValues(nil)
 
-	asgmts := []string{}
-	args := []interface{}{}
+  asgmts := []string{}
+  args := []interface{}{}
 
-	// Choose columns to update.
-	for i, col := range meta.columnNames {
+  // Choose columns to update.
+  for i, col := range meta.columnNames {
 
-		if meta.isPrimary[i] {
-			// Skip primary column.
-			continue
-		}
+    if meta.isPrimary[i] {
+      // Skip primary column.
+      continue
+    }
 
-		val := vals[i]
-		newVal := newVals[i]
-		if val == newVal {
-			// Skip if no difference.
-			continue
-		}
+    val := vals[i]
+    newVal := newVals[i]
+    if val == newVal {
+      // Skip if no difference.
+      continue
+    }
 
-		asgmts = append(asgmts, fmt.Sprintf("`%s`=?", col))
-		args = append(args, newVal)
+    asgmts = append(asgmts, fmt.Sprintf("`%s`=?", col))
+    args = append(args, newVal)
 
-	}
+  }
 
-	// Nothing to update.
-	if len(args) == 0 {
-		return nil
-	}
+  // Nothing to update.
+  if len(args) == 0 {
+    return nil
+  }
 
-	// Construct query.
-	query := fmt.Sprintf("UPDATE `%s` SET %s WHERE %s", meta.tableName, strings.Join(asgmts, ", "), meta.primaryCond)
+  // Construct query.
+  query := fmt.Sprintf("UPDATE `%s` SET %s WHERE %s", meta.tableName, strings.Join(asgmts, ", "), meta.primaryCond)
 
-	// Append primary value.
-	tr.ColumnValues(&args, meta.primaryColumnsPos...)
+  // Append primary value.
+  tr.ColumnValues(&args, meta.primaryColumnsPos...)
 
-	// Query.
-	_, err := e.ExecContext(ctx, query, args...)
-	return err
+  // Query.
+  _, err := e.ExecContext(ctx, query, args...)
+  return err
 
 }
 
 // DeleteTR deletes `tr` in table by its primary key. `tr` must be valid.
 func DeleteTR(ctx context.Context, e Execer, tr TableRowWithPrimary) error {
 
-	// Check the table row's validity.
-	meta := tr.TableMeta()
-	if !tr.Valid() {
-		return fmt.Errorf("Delete: row is invalid")
-	}
+  // Check the table row's validity.
+  meta := tr.TableMeta()
+  if !tr.Valid() {
+    return fmt.Errorf("Delete: row is invalid")
+  }
 
-	// Prepare args.
-	args := tr.ColumnValues(nil, meta.primaryColumnsPos...)
+  // Prepare args.
+  args := tr.ColumnValues(nil, meta.primaryColumnsPos...)
 
-	// Query.
-	_, err := e.ExecContext(ctx, meta.deleteByPrimaryQuery, args...)
-	return err
+  // Query.
+  _, err := e.ExecContext(ctx, meta.deleteByPrimaryQuery, args...)
+  return err
 }
 
 // SelectTR selects `tr` from table by its primary key. `tr` must be valid.
 // If `lock` is true, then "SELECT ... FOR UPDATE" will be used.
 // It returns no error if a row is successfully found and returned.
 func SelectTR(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock bool) error {
-	return SelectTRCond(ctx, q, tr, lock, "")
+  return SelectTRCond(ctx, q, tr, lock, "")
 }
 
 // SelectTRCond selects `tr` from table by custom condition. `tr` must be valid.
@@ -276,94 +276,94 @@ func SelectTR(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock bool)
 // It returns no error if a row is successfully found and returned.
 func SelectTRCond(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock bool, cond string, args ...interface{}) error {
 
-	// Check the table row's validity.
-	meta := tr.TableMeta()
-	if !tr.Valid() {
-		return fmt.Errorf("SelectOne: row is invalid")
-	}
+  // Check the table row's validity.
+  meta := tr.TableMeta()
+  if !tr.Valid() {
+    return fmt.Errorf("SelectOne: row is invalid")
+  }
 
-	// If cond and args are empty, take them from tr.
-	if cond == "" {
-		if len(args) != 0 {
-			return fmt.Errorf("SelectOne: cond is empty but have args")
-		}
-		cond = meta.primaryCond
-		tr.ColumnValues(&args, meta.primaryColumnsPos...)
-	}
+  // If cond and args are empty, take them from tr.
+  if cond == "" {
+    if len(args) != 0 {
+      return fmt.Errorf("SelectOne: cond is empty but have args")
+    }
+    cond = meta.primaryCond
+    tr.ColumnValues(&args, meta.primaryColumnsPos...)
+  }
 
-	// Construct query.
-	query := fmt.Sprintf("%s WHERE %s", meta.selectQuery, cond)
-	if lock {
-		query += " FOR UPDATE"
-	}
+  // Construct query.
+  query := fmt.Sprintf("%s WHERE %s", meta.selectQuery, cond)
+  if lock {
+    query += " FOR UPDATE"
+  }
 
-	// Prepare result.
-	result := []interface{}{}
-	tr.ColumnPointers(&result)
+  // Prepare result.
+  result := []interface{}{}
+  tr.ColumnPointers(&result)
 
-	// Query.
-	row := q.QueryRowContext(ctx, query, args...)
-	return row.Scan(result)
+  // Query.
+  row := q.QueryRowContext(ctx, query, args...)
+  return row.Scan(result)
 
 }
 
 func isZero(val interface{}) bool {
 
-	switch v := val.(type) {
-	case float32:
-		return v == 0
-	case float64:
-		return v == 0
-	case bool:
-		return v == false
-	case int8:
-		return v == 0
-	case int16:
-		return v == 0
-	case int32:
-		return v == 0
-	case int64:
-		return v == 0
-	case uint8:
-		return v == 0
-	case uint16:
-		return v == 0
-	case uint32:
-		return v == 0
-	case uint64:
-		return v == 0
-	case time.Time:
-		return v.IsZero()
-	case string:
-		return v == ""
-	case null.Float32:
-		return !v.Valid
-	case null.Float64:
-		return !v.Valid
-	case null.Bool:
-		return !v.Valid
-	case null.Int8:
-		return !v.Valid
-	case null.Int16:
-		return !v.Valid
-	case null.Int32:
-		return !v.Valid
-	case null.Int64:
-		return !v.Valid
-	case null.Uint8:
-		return !v.Valid
-	case null.Uint16:
-		return !v.Valid
-	case null.Uint32:
-		return !v.Valid
-	case null.Uint64:
-		return !v.Valid
-	case null.Time:
-		return !v.Valid
-	case null.String:
-		return !v.Valid
-	default:
-		panic(fmt.Errorf("isZero: Not support test for type %T", val))
-	}
+  switch v := val.(type) {
+  case float32:
+    return v == 0
+  case float64:
+    return v == 0
+  case bool:
+    return v == false
+  case int8:
+    return v == 0
+  case int16:
+    return v == 0
+  case int32:
+    return v == 0
+  case int64:
+    return v == 0
+  case uint8:
+    return v == 0
+  case uint16:
+    return v == 0
+  case uint32:
+    return v == 0
+  case uint64:
+    return v == 0
+  case time.Time:
+    return v.IsZero()
+  case string:
+    return v == ""
+  case null.Float32:
+    return !v.Valid
+  case null.Float64:
+    return !v.Valid
+  case null.Bool:
+    return !v.Valid
+  case null.Int8:
+    return !v.Valid
+  case null.Int16:
+    return !v.Valid
+  case null.Int32:
+    return !v.Valid
+  case null.Int64:
+    return !v.Valid
+  case null.Uint8:
+    return !v.Valid
+  case null.Uint16:
+    return !v.Valid
+  case null.Uint32:
+    return !v.Valid
+  case null.Uint64:
+    return !v.Valid
+  case null.Time:
+    return !v.Valid
+  case null.String:
+    return !v.Valid
+  default:
+    panic(fmt.Errorf("isZero: Not support test for type %T", val))
+  }
 
 }
