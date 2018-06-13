@@ -1,0 +1,50 @@
+package {{ .PackageName }}
+
+import (
+	"context"
+	"database/sql"
+)
+
+// Execer is the common interface to execute a query without returning any row.
+type Execer interface {
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+}
+
+// Queryer is the common interface to execute a query returning row(s).
+type Queryer interface {
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+}
+
+// TableRow represents a table's row.
+type TableRow interface {
+	// TableMeta returns the table's meta information.
+	TableMeta() *TableMeta
+
+	// Valid returns true if this is a valid table row (e.g. not NULL).
+	Valid() bool
+
+	// ColumnValues appends a list of columns' values to `dest`.
+	// `pos` is used to specify which columns to append.
+	// If `pos` is omitted, then all columns are appended.
+	// The function returns the slice of appended columns in `dest`.
+	// NOTE: `dest` can be nil, in this case, an empty slice will be created to act as `dest`.
+	ColumnValues(dest *[]interface{}, pos ...int) []interface{}
+
+	// ColumnPointers appends a list of columns' pointer to `dest`.
+	// `pos` is used to specify which columns to append.
+	// If `pos` is omitted, then all columns are appended.
+	// The function returns the slice of appended columns in `dest`.
+	// NOTE: `dest` can be nil, in this case, an empty slice will be created to act as `dest`.
+	ColumnPointers(dest *[]interface{}, pos ...int) []interface{}
+}
+
+// TableRowWithPrimary represents row of table with primary key.
+type TableRowWithPrimary interface {
+	TableRow
+
+	// PrimaryValue returns the primary key value of this row.
+	// The returned value is comparable by values.
+	// If the row is invalid or the primary key values are zero values, then nil is returned.
+	PrimaryValue() interface{}
+}

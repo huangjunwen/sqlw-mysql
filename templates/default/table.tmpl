@@ -11,7 +11,7 @@ import (
 
 // Suppress not used errors.
 var (
-  _ = context.TODO
+  _ = context.Background
 	_ = fmt.Printf
 	_ = time.Now
 	_ = null.NewBool
@@ -35,6 +35,15 @@ type null{{ $upper }} struct {
 	null{{ UpperCamel $col.ColumnName }} {{ NullScanType $col }}
   {{ end -}}{{ end -}}
 }
+
+{{ if .Table.Primary.Valid -}}
+// {{ $lower }}PrimaryValue is the primary value of {{ $upper }}.
+type {{ $lower }}PrimaryValue struct {
+  {{ range $col := .Table.Primary.Columns -}}
+  {{ UpperCamel $col.ColumnName }} {{ ScanType $col }}
+  {{ end -}}
+}
+{{ end }}
 
 var (
   {{ $lower }}Meta = NewTableMeta(
@@ -60,59 +69,131 @@ func (tr *{{ $upper }}) Valid() bool {
   return tr != nil
 }
 
-// ColumnValuer returns the i-th column as value.
-func (tr *{{ $upper }}) ColumnValuer(i int) interface{} {
-  switch i {
-  {{ range $i, $col := .Table.Columns -}}
-  case {{ $i }}: return tr.{{ UpperCamel $col.ColumnName }}
-  {{ end -}}
-  default:
-    panic(fmt.Errorf("{{ $upper }}.ColumnValuer: %d is out of range", i))
+// ColumnValues implements `TableRow` interface.
+func (tr *{{ $upper }}) ColumnValues(dest *[]interface{}, pos ...int) []interface{} {
+  if dest == nil {
+    n := len(pos)
+    if n == 0 {
+      n = {{ .Table.NumColumn }}
+    }
+    buf := make([]interface{}, 0, n)
+    dest = &buf
   }
+  l := len(*dest)
+
+  if len(pos) == 0 {
+    *dest = append(*dest,
+    {{ range $col := .Table.Columns -}}
+      tr.{{ UpperCamel $col.ColumnName }},
+    {{ end -}}
+    )
+  } else {
+    for _, p := range pos {
+      switch p {
+      {{ range $i, $col := .Table.Columns -}}
+      case {{ $i }}:
+        *dest = append(*dest, tr.{{ UpperCamel $col.ColumnName }})
+      {{ end -}}
+      default:
+        panic(fmt.Errorf("{{ $upper }}.ColumnValues: %d out of range", p))
+      }
+    }
+  }
+
+  return (*dest)[l:]
 }
 
-// ColumnScanner returns the i-th column as scanner.
-func (tr *{{ $upper }}) ColumnScanner(i int) interface{} {
-  switch i {
-  {{ range $i, $col := .Table.Columns -}}
-  case {{ $i }}: return &tr.{{ UpperCamel $col.ColumnName }}
-  {{ end -}}
-  default:
-    panic(fmt.Errorf("{{ $upper }}.ColumnScanner: %d is out of range", i))
+// ColumnPointers implements `TableRow` interface.
+func (tr *{{ $upper }}) ColumnPointers(dest *[]interface{}, pos ...int) []interface{} {
+  if dest == nil {
+    n := len(pos)
+    if n == 0 {
+      n = {{ .Table.NumColumn }}
+    }
+    buf := make([]interface{}, 0, n)
+    dest = &buf
   }
+  l := len(*dest)
+
+  if len(pos) == 0 {
+    *dest = append(*dest,
+    {{ range $col := .Table.Columns -}}
+      &tr.{{ UpperCamel $col.ColumnName }},
+    {{ end -}}
+    )
+  } else {
+    for _, p := range pos {
+      switch p {
+      {{ range $i, $col := .Table.Columns -}}
+      case {{ $i }}:
+        *dest = append(*dest, &tr.{{ UpperCamel $col.ColumnName }})
+      {{ end -}}
+      default:
+        panic(fmt.Errorf("{{ $upper }}.ColumnPointers: %d out of range", p))
+      }
+    }
+  }
+
+  return (*dest)[l:]
 }
 
-// Insert this row. 
+{{ if .Table.Primary.Valid -}}
+// PrimaryValue implements `TableRowWithPrimary` interface.
+// It returns nil if `tr` is nil or primary column(s) have zero value.  
+func (tr *{{ $upper }}) PrimaryValue() interface{} {
+  if tr == nil {
+    return nil
+  }
+  {{ range $col := .Table.Primary.Columns }}
+  if isZero(tr.{{ UpperCamel $col.ColumnName }}) {
+    return nil
+  }
+  {{ end }}
+  return {{ $lower }}PrimaryValue{
+    {{ range $col := .Table.Primary.Columns -}}
+    {{ UpperCamel $col.ColumnName }}: tr.{{ UpperCamel $col.ColumnName }},
+    {{ end -}}
+  }
+}
+{{ end -}}
+
+// Insert is used to insert this row into table.
 // NOTE: This method does not modify content in `tr` except auto increment column (if exists).
 {{ if .Table.Primary.Valid -}}
 // Use Reload to get the newest data from database.
 {{ end -}}
 func (tr *{{ $upper }}) Insert(ctx context.Context, e Execer) error {
-  return tr.TableMeta().Insert(ctx, e, tr)
+  return Insert(ctx, e, tr)
 }
 
 {{ if .Table.Primary.Valid -}}
-// Reload this row. `tr` should have valid primary key value(s). 
-// If lock is true, "FOR UPDATE" will be used.
-func (tr *{{ $upper }}) Reload(ctx context.Context, q Queryer, lock bool) error {
-  return tr.TableMeta().Select(ctx, q, tr, lock)
+// Reload is used to reload this row from table. `tr` should have valid primary value.
+func (tr *{{ $upper }}) Reload(ctx context.Context, q Queryer) error {
+  return Select(ctx, q, tr, false)
 }
 {{ end }}
 
 {{ if .Table.Primary.Valid -}}
-// Update this row. `tr` should have valid primary key value(s). 
+// ReloadWithLock is used to reload this row with lock from table. `tr` should have valid primary value.
+func (tr *{{ $upper }}) ReloadWithLock(ctx context.Context, q Queryer) error {
+  return Select(ctx, q, tr, true)
+}
+{{ end }}
+
+{{ if .Table.Primary.Valid -}}
+// Update is used to update this row in table. `tr` should have valid primary key value. 
 // Only columns with different values will be updated.
 // NOTE: This method does not modify content in `tr`/`newTr`. 
 // Use Reload to get the newest data from database.
 func (tr *{{ $upper }}) Update(ctx context.Context, e Execer, newTr *{{ $upper }}) error {
-  return tr.TableMeta().Update(ctx, e, tr, newTr)
+  return Update(ctx, e, tr, newTr)
 }
 {{ end }}
 
 {{ if .Table.Primary.Valid -}}
-// Delete this row. `tr` should have valid primary key value(s).
+// Delete is used to delete this row from table. `tr` should have valid primary key value.
 func (tr *{{ $upper }}) Delete(ctx context.Context, e Execer) error {
-  return tr.TableMeta().Delete(ctx, e, tr)
+  return Delete(ctx, e, tr)
 }
 {{ end }}
 
@@ -123,7 +204,7 @@ func (tr *{{ $upper }}) Copy() *{{ $upper }} {
   return ret
 }
 
-func (tr *null{{ $upper }}) ColumnScanners(dest *[]interface{}) {
+func (tr *null{{ $upper }}) ColumnPointers(dest *[]interface{}) {
   *tr = null{{ $upper }}{}
   *dest = append(*dest,
   {{ range $i, $col := .Table.Columns -}}

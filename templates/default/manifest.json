@@ -4,8 +4,8 @@
     "table": "table.tmpl",
     "stmt": "stmt.tmpl",
     "etc": [
-      "meta.tmpl",
-      "queryer.tmpl"
+      "intf.tmpl",
+      "meta.tmpl"
     ]
   }
 }
