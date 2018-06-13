@@ -47,3 +47,27 @@ type TableRowWithPrimary interface {
   // The returned value is comparable by values.
   PrimaryValue() interface{}
 }
+
+// Slicer represents an appendable slice.
+type Slicer interface {
+  // Len returns the length of the slice.
+  Len() int
+
+  // Item returns the i-th item of the slice. i should be within [0, Len()), otherwise a panic will be raised.
+  Item(i int) interface{}
+
+  // Append an item to the slice. If item is nil, then an empty item should be appended.
+  Append(item interface{})
+}
+
+// Slicers represents a slice of Slicer.
+type Slicers interface {
+  // Len returns the number of Slicer.
+  Len() int
+
+  // Slicer returns the i-th Slicer.
+  Slicer(i int) Slicer
+
+  // Append appends an empty Slicer.
+  Append()
+}

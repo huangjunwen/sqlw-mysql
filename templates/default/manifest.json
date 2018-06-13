@@ -5,7 +5,8 @@
     "stmt": "stmt.tmpl",
     "etc": [
       "intf.tmpl",
-      "meta.tmpl"
+      "meta.tmpl",
+      "group.tmpl"
     ]
   }
 }

@@ -28,8 +28,11 @@ type {{ $upper }} struct {
   {{ end -}}
 }
 
-// null{{ $upper }} is nullable version of {{ $upper }}. It's mainly used for scanning row which maybe NULL (e.g. in outer join).
-type null{{ $upper }} struct {
+// nx{{ $upper }}Slice is slice of {{ $upper }}.
+type nx{{ $upper }}Slice []*{{ $upper }}
+
+// nxNull{{ $upper }} is nullable version of {{ $upper }}. It's mainly used for scanning row which maybe NULL (e.g. in outer join).
+type nxNull{{ $upper }} struct {
   ordinary {{ $upper }}
   {{ range $col := .Table.Columns -}}{{ if not $col.Nullable -}}
   null{{ UpperCamel $col.ColumnName }} {{ NullScanType $col }}
@@ -37,8 +40,8 @@ type null{{ $upper }} struct {
 }
 
 {{ if .Table.Primary.Valid -}}
-// {{ $lower }}PrimaryValue is the primary value of {{ $upper }}.
-type {{ $lower }}PrimaryValue struct {
+// nx{{ $upper }}PrimaryValue is the primary value of {{ $upper }}.
+type nx{{ $upper }}PrimaryValue struct {
   {{ range $col := .Table.Primary.Columns -}}
   {{ UpperCamel $col.ColumnName }} {{ ScanType $col }}
   {{ end -}}
@@ -46,7 +49,7 @@ type {{ $lower }}PrimaryValue struct {
 {{ end }}
 
 var (
-  {{ $lower }}Meta = NewTableMeta(
+  nx{{ $upper }}Meta = NewTableMeta(
     "{{ $name }}",
     []string{ {{- range $col := .Table.Columns }}"{{ $col.ColumnName }}", {{ end -}} },
     OptColumnsWithDefault({{ range $col := .Table.Columns }}{{ if $col.HasDefaultValue }}"{{ $col.ColumnName }}", {{ end }}{{ end }}),
@@ -61,7 +64,7 @@ var (
 
 // TableMeta returns the table meta information of table `{{ $name }}`.
 func (tr *{{ $upper }}) TableMeta() *TableMeta {
-  return {{ $lower }}Meta
+  return nx{{ $upper }}Meta
 }
 
 // Valid returns true if tr is not nil.
@@ -144,7 +147,7 @@ func (tr *{{ $upper }}) PrimaryValue() interface{} {
   if tr == nil {
     return nil
   }
-  return {{ $lower }}PrimaryValue{
+  return nx{{ $upper }}PrimaryValue{
     {{ range $col := .Table.Primary.Columns -}}
     {{ UpperCamel $col.ColumnName }}: tr.{{ UpperCamel $col.ColumnName }},
     {{ end -}}
@@ -215,8 +218,24 @@ func {{ $upper }}By{{ UpperCamel $index.IndexName }}(ctx context.Context, q Quer
 {{ end -}}
 {{ end }}
 
-func (tr *null{{ $upper }}) ColumnPointers(dest *[]interface{}) {
-  *tr = null{{ $upper }}{}
+func (slice *nx{{ $upper }}Slice) Len() int {
+  return len(*slice)
+}
+
+func (slice *nx{{ $upper }}Slice) Item(i int) interface{} {
+  return (*slice)[i]
+}
+
+func (slice *nx{{ $upper }}Slice) Append(item interface{}) {
+  obj := (*{{ $upper }})(nil)
+  if item != nil {
+    obj = item.(*{{ $upper }})
+  }
+  *slice = append(*slice, obj)
+}
+
+func (tr *nxNull{{ $upper }}) ColumnPointers(dest *[]interface{}) {
+  *tr = nxNull{{ $upper }}{}
   *dest = append(*dest,
   {{ range $i, $col := .Table.Columns -}}
   {{ if $col.Nullable -}}
@@ -228,7 +247,7 @@ func (tr *null{{ $upper }}) ColumnPointers(dest *[]interface{}) {
   )
 }
 
-func (tr *null{{ $upper }}) Ordinary() (*{{ $upper }}, error) {
+func (tr *nxNull{{ $upper }}) Ordinary() (*{{ $upper }}, error) {
 
   var nullCol string
 
@@ -250,7 +269,7 @@ func (tr *null{{ $upper }}) Ordinary() (*{{ $upper }}, error) {
   return &tr.ordinary, nil
 
 CheckNULL:
-  if *tr == (null{{ $upper }}{}) {
+  if *tr == (nxNull{{ $upper }}{}) {
     return nil, nil
   }
   return nil, fmt.Errorf("{{ $name }}.%s can't be NULL", nullCol)

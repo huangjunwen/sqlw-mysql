@@ -1,0 +1,39 @@
+package {{ .PackageName }}
+
+import (
+  "fmt"
+)
+
+func groupBy(src Slicer, selector func(interface{}) TableRowWithPrimary, trs Slicer, groups Slicers) {
+
+  if trs.Len() != 0 || groups.Len() != 0 {
+    panic(fmt.Errorf("Expect empty slices"))
+  }
+
+  prims := make(map[interface{}]int) // PrimaryValue -> index of trs/groups
+  for i := 0; i < src.Len(); i++ {
+
+    item := src.Item(i)
+    tr := selector(item)
+    
+    // Skip null rows.
+    if !tr.Valid() {
+      continue
+    }
+
+    p := tr.PrimaryValue()
+    idx, ok := prims[p]
+    if !ok {
+      // A new PrimaryValue found.
+      trs.Append(tr)
+      groups.Append()
+      idx = trs.Len() - 1
+      prims[p] = idx
+    }
+
+    groups.Slicer(idx).Append(item)
+
+  }
+
+}
+
