@@ -25,9 +25,9 @@ type TableMeta struct {
   columnsPos map[string]int // column name -> column pos
 
   // Post calculate information.
-  isPrimary            []bool // column pos -> true if the column is part of primary key
-  primaryCond          string // "`id1`=? AND `id2`=? ..."
-  selectQuery          string // "SELECT `col`, .... FROM `xxx`"
+  isPrimary   []bool          // column pos -> true if the column is part of primary key
+  primaryCond string          // "`id1`=? AND `id2`=? ..."
+  selectQuery string          // "SELECT `col`, .... FROM `xxx`"
   deleteByPrimaryQuery string // "DELETE FROM `xxx` WHERE `id`=? AND ..."
 }
 
@@ -120,7 +120,7 @@ func NewTableMeta(tableName string, columnNames []string, opts ...TableMetaOptio
   }
   meta.selectQuery = fmt.Sprintf("SELECT %s FROM `%s`", strings.Join(cols, ", "), meta.tableName)
 
-  // deleteQuery
+  // deleteByPrimaryQuery  
   meta.deleteByPrimaryQuery = fmt.Sprintf("DELETE FROM `%s` WHERE %s", meta.tableName, meta.primaryCond)
 
   return meta
@@ -132,24 +132,24 @@ func (meta *TableMeta) TableName() string {
   return meta.tableName
 }
 
-// InsertTR inserts `tr` into table. `tr` must be valid. Rules:
+// insertTR inserts `tr` into table. `tr` must be valid. Rules:
 //   - If column has non zero value, then this column will be inserted.
 //   - Othewise if the column doesn't have not NULL default, this column will be inserted.
-func InsertTR(ctx context.Context, e Execer, tr TableRow) error {
+// If `tr` has auto increment column then insertTR will also update it.
+func insertTR(ctx context.Context, e Execer, tr TableRow) error {
 
   meta := tr.TableMeta()
   if !tr.Valid() {
     return fmt.Errorf("Insert: row is invalid")
   }
 
-  vals := tr.ColumnValues(nil)
   cols := []string{}
   phs := []string{}
   args := []interface{}{}
 
   // Choose columns to insert.
   for i, col := range meta.columnNames {
-    val := vals[i]
+    val := tr.ColumnValue(i)
     if isZero(val) && meta.hasDefault[i] {
       // Skip column value that is zero value and has not null default.
       continue
@@ -174,12 +174,12 @@ func InsertTR(ctx context.Context, e Execer, tr TableRow) error {
   }
 
   // If has auto increment column and the column's value is zero.
-  if meta.autoIncColumnPos >= 0 && isZero(vals[meta.autoIncColumnPos]) {
+  if meta.autoIncColumnPos >= 0 && isZero(tr.ColumnValue(meta.autoIncColumnPos)) {
     lastInsertId, err := result.LastInsertId()
     if err != nil {
       return err
     }
-    if err := convert.ConvertAssign(tr.ColumnPointers(nil, meta.autoIncColumnPos)[0], lastInsertId); err != nil {
+    if err := convert.ConvertAssign(tr.ColumnPointer(meta.autoIncColumnPos), lastInsertId); err != nil {
       return err
     }
   }
@@ -188,10 +188,10 @@ func InsertTR(ctx context.Context, e Execer, tr TableRow) error {
 
 }
 
-// UpdateTR updates `tr` to `newTr` in table by its primary key. `tr`/`newTr` must be valid.
+// updateTR updates `tr` to `newTr` in table by its primary key. `tr`/`newTr` must be valid.
 // Rules:
 //   - Only columns that have different values will be updated.
-func UpdateTR(ctx context.Context, e Execer, tr, newTr TableRowWithPrimary) error {
+func updateTR(ctx context.Context, e Execer, tr, newTr TableRowWithPrimary) error {
 
   // Check the table rows' validity.
   meta := tr.TableMeta()
@@ -201,10 +201,6 @@ func UpdateTR(ctx context.Context, e Execer, tr, newTr TableRowWithPrimary) erro
   if !tr.Valid() || !newTr.Valid() {
     return fmt.Errorf("Update: row(s) is(are) invalid")
   }
-
-  // Get values.
-  vals := tr.ColumnValues(nil)
-  newVals := newTr.ColumnValues(nil)
 
   asgmts := []string{}
   args := []interface{}{}
@@ -217,8 +213,8 @@ func UpdateTR(ctx context.Context, e Execer, tr, newTr TableRowWithPrimary) erro
       continue
     }
 
-    val := vals[i]
-    newVal := newVals[i]
+    val := tr.ColumnValue(i)
+    newVal := newTr.ColumnValue(i)
     if val == newVal {
       // Skip if no difference.
       continue
@@ -238,7 +234,7 @@ func UpdateTR(ctx context.Context, e Execer, tr, newTr TableRowWithPrimary) erro
   query := fmt.Sprintf("UPDATE `%s` SET %s WHERE %s", meta.tableName, strings.Join(asgmts, ", "), meta.primaryCond)
 
   // Append primary value.
-  tr.ColumnValues(&args, meta.primaryColumnsPos...)
+  appendPrimaryValues(&args, tr)
 
   // Query.
   _, err := e.ExecContext(ctx, query, args...)
@@ -246,8 +242,8 @@ func UpdateTR(ctx context.Context, e Execer, tr, newTr TableRowWithPrimary) erro
 
 }
 
-// DeleteTR deletes `tr` in table by its primary key. `tr` must be valid.
-func DeleteTR(ctx context.Context, e Execer, tr TableRowWithPrimary) error {
+// deleteTR deletes `tr` in table by its primary key. `tr` must be valid.
+func deleteTR(ctx context.Context, e Execer, tr TableRowWithPrimary) error {
 
   // Check the table row's validity.
   meta := tr.TableMeta()
@@ -256,25 +252,25 @@ func DeleteTR(ctx context.Context, e Execer, tr TableRowWithPrimary) error {
   }
 
   // Prepare args.
-  args := tr.ColumnValues(nil, meta.primaryColumnsPos...)
+  args := []interface{}{}
+  appendPrimaryValues(&args, tr)
 
   // Query.
   _, err := e.ExecContext(ctx, meta.deleteByPrimaryQuery, args...)
   return err
 }
 
-// SelectTR selects `tr` from table by its primary key. `tr` must be valid.
+// selectTR selects `tr` from table by its primary key. `tr` must be valid.
 // If `lock` is true, then "SELECT ... FOR UPDATE" will be used.
 // It returns no error if a row is successfully found and returned.
-func SelectTR(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock bool) error {
-  return SelectTRCond(ctx, q, tr, lock, "")
+func selectTR(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock bool) error {
+  return selectTRCond(ctx, q, tr, lock, "")
 }
 
-// SelectTRCond selects `tr` from table by custom condition. `tr` must be valid.
+// selectTRCond selects `tr` from table by custom condition. `tr` must be valid.
 // If `lock` is true, then "SELECT ... FOR UPDATE" will be used.
-// If `cond` == "" then it's the same as SelectTR.
 // It returns no error if a row is successfully found and returned.
-func SelectTRCond(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock bool, cond string, args ...interface{}) error {
+func selectTRCond(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock bool, cond string, args ...interface{}) error {
 
   // Check the table row's validity.
   meta := tr.TableMeta()
@@ -282,13 +278,13 @@ func SelectTRCond(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock b
     return fmt.Errorf("SelectOne: row is invalid")
   }
 
-  // If cond and args are empty, take them from tr.
+  // If cond is empty, use primary condition.
   if cond == "" {
-    if len(args) != 0 {
-      return fmt.Errorf("SelectOne: cond is empty but have args")
+    if len(args) == 0 {
+      return fmt.Errorf("SelectTRCond: cond is empty but args is not")
     }
     cond = meta.primaryCond
-    tr.ColumnValues(&args, meta.primaryColumnsPos...)
+    appendPrimaryValues(&args, tr)
   }
 
   // Construct query.
@@ -299,12 +295,23 @@ func SelectTRCond(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock b
 
   // Prepare result.
   result := []interface{}{}
-  tr.ColumnPointers(&result)
+  tr.PreScan(&result)
 
   // Query.
   row := q.QueryRowContext(ctx, query, args...)
-  return row.Scan(result)
+  if err := row.Scan(result); err != nil {
+    return err
+  }
 
+  return tr.PostScan()
+
+}
+
+func appendPrimaryValues(dest *[]interface{}, tr TableRowWithPrimary) {
+  meta := tr.TableMeta()
+  for _, pos := range meta.primaryColumnsPos {
+    *dest = append(*dest, tr.ColumnValue(pos))
+  }
 }
 
 func isZero(val interface{}) bool {

@@ -16,27 +16,31 @@ type Queryer interface {
   QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
 }
 
+// ColumnScanner represents a collection of columns that can be scanned into from a row.
+type ColumnScanner interface {
+  // PreScan appends all columns to dest for scanning.
+  PreScan(dest *[]interface{})
+
+  // PostScan must be called after scanning to do some extra processsing.
+  PostScan() error
+}
+
 // TableRow represents a table's row.
 type TableRow interface {
+  ColumnScanner
+
   // TableMeta returns the table's meta information.
   TableMeta() *TableMeta
 
   // Valid returns true if this is a valid table row (e.g. not NULL).
   Valid() bool
 
-  // ColumnValues appends a list of columns' values to `dest`.
-  // `pos` is used to specify which columns to append.
-  // If `pos` is omitted, then all columns are appended.
-  // The function returns the slice of appended columns in `dest`.
-  // NOTE: `dest` can be nil, in this case, an empty slice will be created to act as `dest`.
-  ColumnValues(dest *[]interface{}, pos ...int) []interface{}
+  // ColumnValue returns the i-th column value.
+  ColumnValue(i int) interface{}
 
-  // ColumnPointers appends a list of columns' pointer to `dest`.
-  // `pos` is used to specify which columns to append.
-  // If `pos` is omitted, then all columns are appended.
-  // The function returns the slice of appended columns in `dest`.
-  // NOTE: `dest` can be nil, in this case, an empty slice will be created to act as `dest`.
-  ColumnPointers(dest *[]interface{}, pos ...int) []interface{}
+  // ColumnPointer returns the i-th column's pointer.
+  ColumnPointer(i int) interface{}
+
 }
 
 // TableRowWithPrimary represents row of table with primary key.

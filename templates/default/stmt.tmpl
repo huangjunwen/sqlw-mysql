@@ -6,6 +6,7 @@ import (
   "text/template"
   "database/sql"
   "bytes"
+  "time"
 
   "github.com/jmoiron/sqlx"
   null "gopkg.in/volatiletech/null.v6"
@@ -20,6 +21,7 @@ var (
   _ = sqlx.Named
   _ = null.NewBool
   _ = bytes.NewBuffer
+  _ = time.Now
 )
 
 {{ range $stmt := .Stmts }}
@@ -75,125 +77,54 @@ func nxBuild{{ $name }}Query(data map[string]interface{}) (string, []interface{}
   {{ if eq $type "SELECT"}}
 
     {{ $flagReturnOne := eq ($vars.Value "return") "one" }}
-    {{ $flagSingleWildcard := $wcs.SingleWildcard }}
-      
-    {{ if $flagSingleWildcard }}
+    {{ $resultName := Ternary $wcs.SingleWildcard (UpperCamel (index $wcs.Wildcards 0).Table.TableName) (printf "%sResult" $name) }}
 
-      {{ $wc := index $wcs.Wildcards 0 }}
-      {{ $resultName := UpperCamel $wc.Table.TableName }}
-
-      func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {{ $arg.ArgName }} {{ $arg.ArgType }}{{ end }}) ({{ if $flagReturnOne }}*{{ $resultName }}{{ else }}[]*{{ $resultName }}{{ end }}, error) {
-  // NOTE: Add a nested block to allow identifier shadowing.
-  {
-    // Build query.
-    query, args, err := nxBuild{{ $name }}Query(map[string]interface{}{
-      {{ range $arg := $args.Args -}}
-      "{{ $arg.ArgName }}": {{ $arg.ArgName }},
-      {{ end -}}
-    })
-    if err != nil {
-      return nil, err
-    }
-
-      {{ if $flagReturnOne }}
-    // Query.
-    row := q.QueryRowContext(ctx, query, args...)
-
-    // Scan.
-    pointers := make([]interface{}, 0, {{ $stmt.NumQueryResultCol }})
-    nullResult := nxNull{{ $resultName }}{}
-    nullResult.ColumnPointers(&pointers)
-    err = row.Scan(pointers...)
-    if err != nil {
-      if err == sql.ErrNoRows {
-        return nil, nil
-      }
-      return nil, err
-    }
-    return nullResult.Ordinary()
-
-      {{ else }} {{/*{{ if $flagReturnOne }}*/}}
-    // Query.
-    rows, err := q.QueryContext(ctx, query, args...)
-    if err != nil {
-      return nil, err
-    }
-    defer rows.Close()
-
-    // Scan.
-    results := []*{{ $resultName }}{}
-    pointers := make([]interface{}, 0, {{ $stmt.NumQueryResultCol }})
-    for rows.Next() {
-      nullResult := nxNull{{ $resultName }}{}
-      pointers = pointers[0:0]
-      nullResult.ColumnPointers(&pointers)
-      err = rows.Scan(pointers...)
-      if err != nil {
-        return nil, err
-      }
-
-      result, err := nullResult.Ordinary()
-      if err != nil {
-        return nil, err
-      }
-      results = append(results, result)
-    }
-    return results, nil
-
-      {{ end }} {{/*{{ if $flagReturnOne }}*/}}
-
-  }
-
-}
-
-    {{ else  }} {{/*{{ if $wcs.SingleWildcard }}*/}}
-
-      {{ $resultName := printf "%sResult" $name }}
-
+    {{ if not $wcs.SingleWildcard }}
+// {{ $resultName }} is the result of {{ $name }}.
 type {{ $resultName }} struct {
-      {{ range $i, $resultCol := $stmt.QueryResultCols -}}
-        {{ $wcName := $wcs.WildcardName $i -}}
+      {{ range $i, $col := $stmt.QueryResultCols -}}
         {{ $wcCol := $wcs.WildcardColumn $i -}}
+        {{ $wcName := $wcs.WildcardName $i -}}
         {{ if $wcCol.Valid -}}
-          {{ if eq $wcCol.Pos 0 }}
+          {{ if eq $wcCol.Pos 0 -}}
   {{ UpperCamel $wcName }} *{{ UpperCamel $wcCol.Table.TableName }}
           {{ end -}}
         {{ else -}}
-  {{ UpperCamel $resultCol.Name }} {{ ScanType $resultCol }}
+  {{ UpperCamel $col.Name }} {{ ScanType $col }}
         {{ end -}}
       {{ end -}}
-
   // The following are for scanning.
       {{ range $wc := $wcs.Wildcards -}}
   nxNull{{ UpperCamel $wc.WildcardName }} nxNull{{ UpperCamel $wc.Table.TableName }}
       {{ end -}}
 }
 
-func (result *{{ $resultName }}) nxColumnPointers(dest *[]interface{}) {
-      {{ range $i, $resultCol := $stmt.QueryResultCols -}}
-        {{ $wcName := $wcs.WildcardName $i -}}
+func (result *{{ $resultName }}) PreScan(dest *[]interface{}) {
+      {{ range $i, $col := $stmt.QueryResultCols -}}
         {{ $wcCol := $wcs.WildcardColumn $i -}}
+        {{ $wcName := $wcs.WildcardName $i -}}
         {{ if $wcCol.Valid -}}
-          {{ if eq $wcCol.Pos 0 }}
-  result.nxNull{{ UpperCamel $wcName }}.ColumnPointers(dest)
+          {{ if eq $wcCol.Pos 0 -}}
+  result.nxNull{{ UpperCamel $wcName }}.PreScan(dest)
           {{ end -}}
         {{ else -}}
-  *dest = append(*dest, &result.{{ UpperCamel $resultCol.Name }})
+  *dest = append(*dest, &result.{{ UpperCamel $col.Name }})
         {{ end -}}
       {{ end -}}
 }
 
-func (result *{{ $resultName }}) nxPostScan() (err error) {
+func (result *{{ $resultName }}) PostScan() error {
       {{ range $wc := $wcs.Wildcards -}}
-        {{ $wcName := $wc.WildcardName -}}
-  result.{{ UpperCamel $wcName }}, err = result.nxNull{{ UpperCamel $wcName }}.Ordinary()
-  if err != nil {
-    return
+        {{ $wcName := UpperCamel $wc.WildcardName }}
+  if err := result.nxNull{{ $wcName }}.PostScan(); err != nil {
+    return err
   }
-      {{ end -}}
-  return
+  result.{{ $wcName }} = result.nxNull{{ $wcName }}.Ordinary()
+      {{ end }}
+  return nil
 }
-
+    {{ end }}
+      
 func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {{ $arg.ArgName }} {{ $arg.ArgType }}{{ end }}) ({{ if $flagReturnOne }}*{{ $resultName }}{{ else }}[]*{{ $resultName }}{{ end }}, error) {
   // NOTE: Add a nested block to allow identifier shadowing.
   {
@@ -211,10 +142,12 @@ func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {
     // Query.
     row := q.QueryRowContext(ctx, query, args...)
 
-    // Scan.
-    result := &{{ $resultName }}{}
+    // Fill scan pointers.
     pointers := make([]interface{}, 0, {{ $stmt.NumQueryResultCol }})
-    result.nxColumnPointers(&pointers)
+    result := &{{ $resultName }}{}
+    result.PreScan(&pointers)
+
+    // Scan.
     err = row.Scan(pointers...)
     if err != nil {
       if err == sql.ErrNoRows {
@@ -223,8 +156,8 @@ func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {
       return nil, err
     }
 
-    err = result.nxPostScan()
-    if err != nil {
+    // Post scan process.
+    if err := result.PostScan(); err != nil {
       return nil, err
     }
     return result, nil
@@ -241,16 +174,19 @@ func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {
     results := []*{{ $resultName }}{}
     pointers := make([]interface{}, 0, {{ $stmt.NumQueryResultCol }})
     for rows.Next() {
-      result := &{{ $resultName }}{}
+      // Fill scan pointers.
       pointers = pointers[0:0]
-      result.nxColumnPointers(&pointers)
+      result := &{{ $resultName }}{}
+      result.PreScan(&pointers)
+
+      // Scan.
       err = rows.Scan(pointers...)
       if err != nil {
         return nil, err
       }
 
-      err = result.nxPostScan()
-      if err != nil {
+      // Post scan process.
+      if err := result.PostScan(); err != nil {
         return nil, err
       }
       results = append(results, result)
@@ -260,10 +196,8 @@ func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {
       {{ end }} {{/*{{ if $flagReturnOne }}*/}}
 
   }
+
 }
-
-    {{ end }} {{/*{{ if $wcs.SingleWildcard }}*/}}
-
 
   {{ else }} {{/*{{ if eq $type "SELECT"}}*/}}
 
