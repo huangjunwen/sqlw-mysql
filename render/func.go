@@ -45,6 +45,13 @@ func slice(s string, args ...int) (result string, err error) {
 	}
 }
 
+func ternary(b bool, t interface{}, f interface{}) interface{} {
+	if b {
+		return t
+	}
+	return f
+}
+
 func (r *Renderer) funcMap() template.FuncMap {
 
 	return template.FuncMap{
@@ -58,6 +65,8 @@ func (r *Renderer) funcMap() template.FuncMap {
 		},
 
 		"Slice": slice,
+
+		"Ternary": ternary,
 
 		"ScanType": func(s interface{}) (string, error) {
 			return r.scanTypeMap.ScanType(s)
