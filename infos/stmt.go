@@ -228,6 +228,14 @@ func (info *StmtInfo) Query() string {
 	return info.query
 }
 
+// NumQueryResultCol returns the number of result columns of the query if the statement is a SELECT.
+func (info *StmtInfo) NumQueryResultCol() int {
+	if info == nil {
+		return 0
+	}
+	return len(info.queryResultCols)
+}
+
 // QueryResultCols returns the result columns of the query if the statement is a SELECT.
 func (info *StmtInfo) QueryResultCols() []datasrc.Col {
 	if info == nil {

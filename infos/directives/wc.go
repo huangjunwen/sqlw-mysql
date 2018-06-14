@@ -15,7 +15,7 @@ import (
 // WildcardsInfo contains wildcard expansions information in a SELECT statement.
 type WildcardsInfo struct {
 	wildcards           []*WildcardInfo
-	resultCols2Wildcard []int
+	resultCols2Wildcard []int // Index of wildcards if the column is from a wildcard expansion or -1 otherwise.
 }
 
 // WildcardInfo contains a single wildcard expansion information in a SELECT statement.
@@ -266,6 +266,14 @@ func (info *WildcardsInfo) WildcardName(i int) string {
 	}
 	return info.wildcards[idx].WildcardName()
 
+}
+
+// SingleWildcard returns true if result columns of the statement are all from a single wildcard expansion.
+func (info *WildcardsInfo) SingleWildcard() bool {
+	if info == nil {
+		return false
+	}
+	return len(info.wildcards) == 1 && info.wildcards[0].table.NumColumn() == len(info.resultCols2Wildcard)
 }
 
 // Valid returns true if info is not nil.
