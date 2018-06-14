@@ -6,14 +6,14 @@ import (
 
 func groupBy(src Slicer, selector func(interface{}) TableRowWithPrimary, trs Slicer, groups Slicers) {
 
-  if trs.Len() != 0 || groups.Len() != 0 {
+  if trs.nxLen() != 0 || groups.nxLen() != 0 {
     panic(fmt.Errorf("Expect empty slices"))
   }
 
   prims := make(map[interface{}]int) // PrimaryValue -> index of trs/groups
-  for i := 0; i < src.Len(); i++ {
+  for i := 0; i < src.nxLen(); i++ {
 
-    item := src.Item(i)
+    item := src.nxItem(i)
     tr := selector(item)
     
     // Skip null rows.
@@ -25,13 +25,13 @@ func groupBy(src Slicer, selector func(interface{}) TableRowWithPrimary, trs Sli
     idx, ok := prims[p]
     if !ok {
       // A new PrimaryValue found.
-      trs.Append(tr)
-      groups.Append()
-      idx = trs.Len() - 1
+      trs.nxAppend(tr)
+      groups.nxAppend()
+      idx = trs.nxLen() - 1
       prims[p] = idx
     }
 
-    groups.Slicer(idx).Append(item)
+    groups.nxSlicer(idx).nxAppend(item)
 
   }
 

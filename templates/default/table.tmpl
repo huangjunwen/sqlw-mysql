@@ -45,8 +45,8 @@ type nxNull{{ $name }} struct {
   {{ end -}}{{ end -}}
 }
 
-// nx{{ $name }}Slice is slice of {{ $name }}.
-type nx{{ $name }}Slice []*{{ $name }}
+// {{ $name }}Slice is slice of {{ $name }}.
+type {{ $name }}Slice []*{{ $name }}
 
 var (
   nx{{ $name }}Meta = NewTableMeta(
@@ -62,8 +62,8 @@ var (
   )
 )
 
-// PreScan appends all columns to dest for scanning. Implements ColumnScanner interface.
-func (tr *{{ $name }}) PreScan(dest *[]interface{}) {
+// nxPreScan appends all columns to dest for scanning. Implements ColumnScanner interface.
+func (tr *{{ $name }}) nxPreScan(dest *[]interface{}) {
   *dest = append(*dest,
   {{ range $col := .Table.Columns -}}
     tr.{{ UpperCamel $col.ColumnName }},
@@ -71,8 +71,8 @@ func (tr *{{ $name }}) PreScan(dest *[]interface{}) {
   )
 }
 
-// PostScan do nothing. Implements ColumnScanner interface.
-func (tr *{{ $name }}) PostScan() error { 
+// nxPostScan do nothing. Implements ColumnScanner interface.
+func (tr *{{ $name }}) nxPostScan() error { 
   return nil 
 }
 
@@ -187,8 +187,8 @@ func {{ $name }}By{{ UpperCamel $index.IndexName }}(ctx context.Context, q Query
 {{ end -}}
 {{ end }}
 
-// PreScan appends all columns to dest for scanning. Implements ColumnScanner interface.
-func (tr *nxNull{{ $name }}) PreScan(dest *[]interface{}) {
+// nxPreScan appends all columns to dest for scanning. Implements ColumnScanner interface.
+func (tr *nxNull{{ $name }}) nxPreScan(dest *[]interface{}) {
   *dest = append(*dest,
   {{ range $i, $col := .Table.Columns -}}
   {{ if $col.Nullable -}}
@@ -200,8 +200,8 @@ func (tr *nxNull{{ $name }}) PreScan(dest *[]interface{}) {
   )
 }
 
-// PostScan must be called after scanning to do some extra processsing. Implements ColumnScanner interface.
-func (tr *nxNull{{ $name }}) PostScan() error {
+// nxPostScan must be called after scanning to do some extra processsing. Implements ColumnScanner interface.
+func (tr *nxNull{{ $name }}) nxPostScan() error {
 
   var nullCol string
 
@@ -235,20 +235,20 @@ CheckNULL:
 }
 
 
-// Ordinary returns the ordinary {{ $name }}. It must be called only after PostScan.
+// Ordinary returns the ordinary {{ $name }}. It must be called only after nxPostScan.
 func (tr *nxNull{{ $name }}) Ordinary() *{{ $name }} {
   return tr.ordinaryPtr
 }
 
-func (slice *nx{{ $name }}Slice) Len() int {
+func (slice *{{ $name }}Slice) nxLen() int {
   return len(*slice)
 }
 
-func (slice *nx{{ $name }}Slice) Item(i int) interface{} {
+func (slice *{{ $name }}Slice) nxItem(i int) interface{} {
   return (*slice)[i]
 }
 
-func (slice *nx{{ $name }}Slice) Append(item interface{}) {
+func (slice *{{ $name }}Slice) nxAppend(item interface{}) {
   obj := (*{{ $name }})(nil)
   if item != nil {
     obj = item.(*{{ $name }})

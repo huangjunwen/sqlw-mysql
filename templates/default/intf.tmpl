@@ -18,11 +18,11 @@ type Queryer interface {
 
 // ColumnScanner represents a collection of columns that can be scanned into from a row.
 type ColumnScanner interface {
-  // PreScan appends all columns to dest for scanning.
-  PreScan(dest *[]interface{})
+  // nxPreScan appends all columns to dest for scanning.
+  nxPreScan(dest *[]interface{})
 
-  // PostScan must be called after scanning to do some extra processsing.
-  PostScan() error
+  // nxPostScan must be called after scanning to do some extra processsing.
+  nxPostScan() error
 }
 
 // TableRow represents a table's row.
@@ -54,24 +54,24 @@ type TableRowWithPrimary interface {
 
 // Slicer represents an appendable slice.
 type Slicer interface {
-  // Len returns the length of the slice.
-  Len() int
+  // nxLen returns the length of the slice.
+  nxLen() int
 
-  // Item returns the i-th item of the slice. i should be within [0, Len()), otherwise a panic will be raised.
-  Item(i int) interface{}
+  // nxItem returns the i-th item of the slice. i should be within [0, nxLen()), otherwise a panic will be raised.
+  nxItem(i int) interface{}
 
-  // Append an item to the slice. If item is nil, then an empty item should be appended.
-  Append(item interface{})
+  // nxAppend an item to the slice. If item is nil, then an empty item should be appended.
+  nxAppend(item interface{})
 }
 
 // Slicers represents a slice of Slicer.
 type Slicers interface {
-  // Len returns the number of Slicer.
-  Len() int
+  // nxLen returns the number of Slicer.
+  nxLen() int
 
-  // Slicer returns the i-th Slicer.
-  Slicer(i int) Slicer
+  // nxSlicer returns the i-th Slicer.
+  nxSlicer(i int) Slicer
 
-  // Append appends an empty Slicer.
-  Append()
+  // nxAppend appends an empty Slicer.
+  nxAppend()
 }

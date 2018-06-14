@@ -295,7 +295,7 @@ func selectTRCond(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock b
 
   // Prepare result.
   result := []interface{}{}
-  tr.PreScan(&result)
+  tr.nxPreScan(&result)
 
   // Query.
   row := q.QueryRowContext(ctx, query, args...)
@@ -303,7 +303,7 @@ func selectTRCond(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock b
     return err
   }
 
-  return tr.PostScan()
+  return tr.nxPostScan()
 
 }
 

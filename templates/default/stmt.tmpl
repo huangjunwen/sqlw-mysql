@@ -77,9 +77,11 @@ func nxBuild{{ $name }}Query(data map[string]interface{}) (string, []interface{}
   {{ if eq $type "SELECT"}}
 
     {{ $flagReturnOne := eq ($vars.Value "return") "one" }}
+    {{ $flagHasWildcard := gt (len $wcs.Wildcards) 0 }}
     {{ $resultName := Ternary $wcs.SingleWildcard (UpperCamel (index $wcs.Wildcards 0).Table.TableName) (printf "%sResult" $name) }}
 
     {{ if not $wcs.SingleWildcard }}
+
 // {{ $resultName }} is the result of {{ $name }}.
 type {{ $resultName }} struct {
       {{ range $i, $col := $stmt.QueryResultCols -}}
@@ -93,19 +95,27 @@ type {{ $resultName }} struct {
   {{ UpperCamel $col.Name }} {{ ScanType $col }}
         {{ end -}}
       {{ end -}}
-  // The following are for scanning.
+
       {{ range $wc := $wcs.Wildcards -}}
   nxNull{{ UpperCamel $wc.WildcardName }} nxNull{{ UpperCamel $wc.Table.TableName }}
       {{ end -}}
 }
 
-func (result *{{ $resultName }}) PreScan(dest *[]interface{}) {
+      {{ if and (not $flagReturnOne) $flagHasWildcard }}
+// {{ $resultName }}Slice is slice of {{ $resultName }}.
+type {{ $resultName }}Slice []*{{ $resultName }}
+
+// nx{{ $resultName }}Slices is slice of {{ $resultName }}Slice.
+type nx{{ $resultName }}Slices []{{ $resultName }}Slice
+      {{ end }}
+
+func (result *{{ $resultName }}) nxPreScan(dest *[]interface{}) {
       {{ range $i, $col := $stmt.QueryResultCols -}}
         {{ $wcCol := $wcs.WildcardColumn $i -}}
         {{ $wcName := $wcs.WildcardName $i -}}
         {{ if $wcCol.Valid -}}
           {{ if eq $wcCol.Pos 0 -}}
-  result.nxNull{{ UpperCamel $wcName }}.PreScan(dest)
+  result.nxNull{{ UpperCamel $wcName }}.nxPreScan(dest)
           {{ end -}}
         {{ else -}}
   *dest = append(*dest, &result.{{ UpperCamel $col.Name }})
@@ -113,19 +123,50 @@ func (result *{{ $resultName }}) PreScan(dest *[]interface{}) {
       {{ end -}}
 }
 
-func (result *{{ $resultName }}) PostScan() error {
+func (result *{{ $resultName }}) nxPostScan() error {
       {{ range $wc := $wcs.Wildcards -}}
         {{ $wcName := UpperCamel $wc.WildcardName }}
-  if err := result.nxNull{{ $wcName }}.PostScan(); err != nil {
+  if err := result.nxNull{{ $wcName }}.nxPostScan(); err != nil {
     return err
   }
   result.{{ $wcName }} = result.nxNull{{ $wcName }}.Ordinary()
       {{ end }}
   return nil
 }
-    {{ end }}
+      {{ if and (not $flagReturnOne) $flagHasWildcard }}
+func (slice *{{ $resultName }}Slice) nxLen() int {
+  return len(*slice)
+}
+
+func (slice *{{ $resultName }}Slice) nxItem(i int) interface{} {
+  return (*slice)[i]
+}
+
+func (slice *{{ $resultName }}Slice) nxAppend(item interface{}) {
+  obj := (*{{ $resultName }})(nil)
+  if item != nil {
+    obj = item.(*{{ $resultName }})
+  }
+  *slice = append(*slice, obj)
+}
+
+func (slices *nx{{ $resultName }}Slices) nxLen() int {
+  return len(*slices)
+}
+
+func (slices *nx{{ $resultName }}Slices) nxSlicer(i int) Slicer {
+  return &((*slices)[i])
+}
+
+func (slices *nx{{ $resultName }}Slices) nxAppend() {
+  *slices = append(*slices, nil)
+}
+
+      {{ end }}
+
+    {{ end }} {{/*{{ if not $wcs.SingleWildcard }}*/}}
       
-func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {{ $arg.ArgName }} {{ $arg.ArgType }}{{ end }}) ({{ if $flagReturnOne }}*{{ $resultName }}{{ else }}[]*{{ $resultName }}{{ end }}, error) {
+func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {{ $arg.ArgName }} {{ $arg.ArgType }}{{ end }}) ({{ if $flagReturnOne }}*{{ $resultName }}{{ else }}{{ $resultName }}Slice{{ end }}, error) {
   // NOTE: Add a nested block to allow identifier shadowing.
   {
     // Build query.
@@ -145,7 +186,7 @@ func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {
     // Fill scan pointers.
     pointers := make([]interface{}, 0, {{ $stmt.NumQueryResultCol }})
     result := &{{ $resultName }}{}
-    result.PreScan(&pointers)
+    result.nxPreScan(&pointers)
 
     // Scan.
     err = row.Scan(pointers...)
@@ -157,7 +198,7 @@ func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {
     }
 
     // Post scan process.
-    if err := result.PostScan(); err != nil {
+    if err := result.nxPostScan(); err != nil {
       return nil, err
     }
     return result, nil
@@ -177,7 +218,7 @@ func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {
       // Fill scan pointers.
       pointers = pointers[0:0]
       result := &{{ $resultName }}{}
-      result.PreScan(&pointers)
+      result.nxPreScan(&pointers)
 
       // Scan.
       err = rows.Scan(pointers...)
@@ -186,7 +227,7 @@ func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {
       }
 
       // Post scan process.
-      if err := result.PostScan(); err != nil {
+      if err := result.nxPostScan(); err != nil {
         return nil, err
       }
       results = append(results, result)
