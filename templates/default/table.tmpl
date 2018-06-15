@@ -17,40 +17,40 @@ var (
   _ = null.NewBool
 )
 
-{{ $tableName := .Table.TableName }}
-{{ $name := UpperCamel .Table.TableName }}
+{{ $name := .Table.TableName }}
+{{ $uname := .Table.UName }}
 
-// {{ $name }} represents a row of table `{{ $tableName }}`.
-type {{ $name }} struct {
+// {{ $uname }} represents a row of table `{{ $name }}`.
+type {{ $uname }} struct {
   {{ range $col := .Table.Columns -}}
-  {{ UpperCamel $col.ColumnName }} {{ ScanType $col }} `json:"{{ $col.ColumnName }}" db:"{{ $col.ColumnName }}"`
+  {{ $col.UName }} {{ ScanType $col }} `json:"{{ $col.ColumnName }}" db:"{{ $col.ColumnName }}"`
   {{ end -}}
 }
 
 {{ if .Table.Primary.Valid -}}
-// nx{{ $name }}PrimaryValue is the primary value of {{ $name }}.
-type nx{{ $name }}PrimaryValue struct {
+// nx{{ $uname }}PrimaryValue is the primary value of {{ $uname }}.
+type nx{{ $uname }}PrimaryValue struct {
   {{ range $col := .Table.Primary.Columns -}}
-  {{ UpperCamel $col.ColumnName }} {{ ScanType $col }}
+  {{ $col.UName }} {{ ScanType $col }}
   {{ end -}}
 }
 {{ end }}
 
-// nxNull{{ $name }} is nullable version of {{ $name }}. It's mainly used for scanning row which maybe NULL (e.g. in outer join).
-type nxNull{{ $name }} struct {
-  ordinary {{ $name }}
-  ordinaryPtr *{{ $name }}
+// nxNull{{ $uname }} is nullable version of {{ $uname }}. It's mainly used for scanning row which maybe NULL (e.g. in outer join).
+type nxNull{{ $uname }} struct {
+  ordinary {{ $uname }}
+  ordinaryPtr *{{ $uname }}
   {{ range $col := .Table.Columns -}}{{ if not $col.Nullable -}}
-  null{{ UpperCamel $col.ColumnName }} {{ NullScanType $col }}
+  null{{ $col.UName }} {{ NullScanType $col }}
   {{ end -}}{{ end -}}
 }
 
-// {{ $name }}Slice is slice of {{ $name }}.
-type {{ $name }}Slice []*{{ $name }}
+// nx{{ $uname }}Slice is slice of {{ $uname }}.
+type nx{{ $uname }}Slice []*{{ $uname }}
 
 var (
-  nx{{ $name }}Meta = NewTableMeta(
-    "{{ $tableName }}",
+  nx{{ $uname }}Meta = NewTableMeta(
+    "{{ $name }}",
     []string{ {{- range $col := .Table.Columns }}"{{ $col.ColumnName }}", {{ end -}} },
     OptColumnsWithDefault({{ range $col := .Table.Columns }}{{ if $col.HasDefaultValue }}"{{ $col.ColumnName }}", {{ end }}{{ end }}),
     {{ if .Table.Primary.Valid -}}
@@ -63,62 +63,62 @@ var (
 )
 
 // nxPreScan appends all columns to dest for scanning. Implements ColumnScanner interface.
-func (tr *{{ $name }}) nxPreScan(dest *[]interface{}) {
+func (tr *{{ $uname }}) nxPreScan(dest *[]interface{}) {
   *dest = append(*dest,
   {{ range $col := .Table.Columns -}}
-    tr.{{ UpperCamel $col.ColumnName }},
+    tr.{{ $col.UName }},
   {{ end -}}
   )
 }
 
 // nxPostScan do nothing. Implements ColumnScanner interface.
-func (tr *{{ $name }}) nxPostScan() error { 
+func (tr *{{ $uname }}) nxPostScan() error { 
   return nil 
 }
 
-// TableMeta returns the table meta information of table `{{ $tableName }}`. Implements TableRow interface.
-func (tr *{{ $name }}) TableMeta() *TableMeta {
-  return nx{{ $name }}Meta
+// TableMeta returns the table meta information of table `{{ $name }}`. Implements TableRow interface.
+func (tr *{{ $uname }}) TableMeta() *TableMeta {
+  return nx{{ $uname }}Meta
 }
 
 // Valid returns true if this is a valid table row (e.g. not NULL). Implements TableRow interface.
-func (tr *{{ $name }}) Valid() bool {
+func (tr *{{ $uname }}) Valid() bool {
   return tr != nil
 }
 
-// ColumnValue returns the i-th column value of table `{{ $tableName }}`. Implements TableRow interface.
-func (tr *{{ $name }}) ColumnValue(i int) interface{} {
+// ColumnValue returns the i-th column value of table `{{ $name }}`. Implements TableRow interface.
+func (tr *{{ $uname }}) ColumnValue(i int) interface{} {
   switch i {
   {{ range $i, $col := .Table.Columns -}}
   case {{ $i }}:
-    return tr.{{ UpperCamel $col.ColumnName }}
+    return tr.{{ $col.UName }}
   {{ end -}}
   default:
-    panic(fmt.Errorf("{{ $name }}.ColumnValue: %d out of range", i))
+    panic(fmt.Errorf("{{ $uname }}.ColumnValue: %d out of range", i))
   }
 }
 
-// ColumnPointe returns the i-th column's pointer of table `{{ $tableName }}`. Implements TableRow interface.
-func (tr *{{ $name }}) ColumnPointer(i int) interface{} {
+// ColumnPointe returns the i-th column's pointer of table `{{ $name }}`. Implements TableRow interface.
+func (tr *{{ $uname }}) ColumnPointer(i int) interface{} {
   switch i {
   {{ range $i, $col := .Table.Columns -}}
   case {{ $i }}:
-    return &tr.{{ UpperCamel $col.ColumnName }}
+    return &tr.{{ $col.UName }}
   {{ end -}}
   default:
-    panic(fmt.Errorf("{{ $name }}.ColumnPointer: %d out of range", i))
+    panic(fmt.Errorf("{{ $uname }}.ColumnPointer: %d out of range", i))
   }
 }
 
 {{ if .Table.Primary.Valid -}}
 // PrimaryValue returns the primary key value of this row. Implements TableRowWithPrimary interface.
-func (tr *{{ $name }}) PrimaryValue() interface{} {
+func (tr *{{ $uname }}) PrimaryValue() interface{} {
   if tr == nil {
     return nil
   }
-  return nx{{ $name }}PrimaryValue{
+  return nx{{ $uname }}PrimaryValue{
     {{ range $col := .Table.Primary.Columns -}}
-    {{ UpperCamel $col.ColumnName }}: tr.{{ UpperCamel $col.ColumnName }},
+    {{ $col.UName }}: tr.{{ $col.UName }},
     {{ end -}}
   }
 }
@@ -129,20 +129,20 @@ func (tr *{{ $name }}) PrimaryValue() interface{} {
 {{ if .Table.Primary.Valid -}}
 // Use Reload to get the newest data from database.
 {{ end -}}
-func (tr *{{ $name }}) Insert(ctx context.Context, e Execer) error {
+func (tr *{{ $uname }}) Insert(ctx context.Context, e Execer) error {
   return insertTR(ctx, e, tr)
 }
 
 {{ if .Table.Primary.Valid -}}
 // Reload is used to reload this row from table.
-func (tr *{{ $name }}) Reload(ctx context.Context, q Queryer) error {
+func (tr *{{ $uname }}) Reload(ctx context.Context, q Queryer) error {
   return selectTR(ctx, q, tr, false)
 }
 {{ end }}
 
 {{ if .Table.Primary.Valid -}}
 // ReloadWithLock is used to reload this row with lock from table.
-func (tr *{{ $name }}) ReloadWithLock(ctx context.Context, q Queryer) error {
+func (tr *{{ $uname }}) ReloadWithLock(ctx context.Context, q Queryer) error {
   return selectTR(ctx, q, tr, true)
 }
 {{ end }}
@@ -151,33 +151,33 @@ func (tr *{{ $name }}) ReloadWithLock(ctx context.Context, q Queryer) error {
 // Update is used to update this row in table. Only columns with different values will be updated.
 // NOTE: This method does not modify content in `tr`/`newTr`. 
 // Use Reload to get the newest data from database.
-func (tr *{{ $name }}) Update(ctx context.Context, e Execer, newTr *{{ $name }}) error {
+func (tr *{{ $uname }}) Update(ctx context.Context, e Execer, newTr *{{ $uname }}) error {
   return updateTR(ctx, e, tr, newTr)
 }
 {{ end }}
 
 {{ if .Table.Primary.Valid -}}
 // Delete is used to delete this row from table.
-func (tr *{{ $name }}) Delete(ctx context.Context, e Execer) error {
+func (tr *{{ $uname }}) Delete(ctx context.Context, e Execer) error {
   return deleteTR(ctx, e, tr)
 }
 {{ end }}
 
 // Copy this row.
-func (tr *{{ $name }}) Copy() *{{ $name }} {
-  ret := &{{ $name }}{}
+func (tr *{{ $uname }}) Copy() *{{ $uname }} {
+  ret := &{{ $uname }}{}
   *ret = *tr
   return ret
 }
 
 {{ range $index := .Table.Indices -}}
 {{ if $index.IsUnique -}}
-// {{ $name }}By{{ UpperCamel $index.IndexName }} is used to select `{{ $tableName }}` row by key `{{ $index.IndexName }}`.
-func {{ $name }}By{{ UpperCamel $index.IndexName }}(ctx context.Context, q Queryer{{ range $col := $index.Columns }}, {{ LowerCamel $col.ColumnName }} {{ NotNullScanType $col }}{{ end }}, lock bool) (*{{ $name }}, error){
-  tr := {{ $name }}{}
+// {{ $uname }}By{{ $index.UName }} is used to select `{{ $name }}` row by key `{{ $index.IndexName }}`.
+func {{ $uname }}By{{ $index.UName }}(ctx context.Context, q Queryer{{ range $col := $index.Columns }}, {{ $col.LName }} {{ NotNullScanType $col }}{{ end }}, lock bool) (*{{ $uname }}, error){
+  tr := {{ $uname }}{}
   if err := selectTRCond(ctx, q, &tr, lock, "1{{ range $col := $index.Columns }} AND `{{ $col.ColumnName }}`=?{{ end }}",
     {{- range $col := $index.Columns -}}
-    {{ LowerCamel $col.ColumnName }},
+    {{ $col.LName }},
     {{- end -}}
   ); err != nil {
     return nil, err
@@ -188,30 +188,30 @@ func {{ $name }}By{{ UpperCamel $index.IndexName }}(ctx context.Context, q Query
 {{ end }}
 
 // nxPreScan appends all columns to dest for scanning. Implements ColumnScanner interface.
-func (tr *nxNull{{ $name }}) nxPreScan(dest *[]interface{}) {
+func (tr *nxNull{{ $uname }}) nxPreScan(dest *[]interface{}) {
   *dest = append(*dest,
   {{ range $i, $col := .Table.Columns -}}
   {{ if $col.Nullable -}}
-    &tr.ordinary.{{ UpperCamel $col.ColumnName }},
+    &tr.ordinary.{{ $col.UName }},
   {{ else -}}
-    &tr.null{{ UpperCamel $col.ColumnName }},
+    &tr.null{{ $col.UName }},
   {{ end -}}
   {{ end -}}
   )
 }
 
 // nxPostScan must be called after scanning to do some extra processsing. Implements ColumnScanner interface.
-func (tr *nxNull{{ $name }}) nxPostScan() error {
+func (tr *nxNull{{ $uname }}) nxPostScan() error {
 
   var nullCol string
 
   {{ range $col := .Table.Columns -}}
   {{ if not $col.Nullable -}}
-  if !tr.null{{ UpperCamel $col.ColumnName }}.Valid {
+  if !tr.null{{ $col.UName }}.Valid {
     nullCol = "{{ $col.ColumnName }}"
     goto CheckNULL
   }
-  tr.ordinary.{{ UpperCamel $col.ColumnName }} = tr.null{{ UpperCamel $col.ColumnName }}.{{ Slice (NullScanType $col) 5 }}
+  tr.ordinary.{{ $col.UName }} = tr.null{{ $col.UName }}.{{ Slice (NullScanType $col) 5 }}
 
   {{ end -}}
   {{ end -}}
@@ -226,32 +226,32 @@ func (tr *nxNull{{ $name }}) nxPostScan() error {
   return nil
 
 CheckNULL:
-  if *tr == (nxNull{{ $name }}{}) {
+  if *tr == (nxNull{{ $uname }}{}) {
     // Null row, set ptr to nil.
     tr.ordinaryPtr = nil
     return nil
   }
-  return fmt.Errorf("{{ $tableName }}.%s can't be NULL", nullCol)
+  return fmt.Errorf("{{ $name }}.%s can't be NULL", nullCol)
 }
 
 
-// Ordinary returns the ordinary {{ $name }}. It must be called only after nxPostScan.
-func (tr *nxNull{{ $name }}) Ordinary() *{{ $name }} {
+// Ordinary returns the ordinary {{ $uname }}. It must be called only after nxPostScan.
+func (tr *nxNull{{ $uname }}) Ordinary() *{{ $uname }} {
   return tr.ordinaryPtr
 }
 
-func (slice *{{ $name }}Slice) nxLen() int {
+func (slice *nx{{ $uname }}Slice) nxLen() int {
   return len(*slice)
 }
 
-func (slice *{{ $name }}Slice) nxItem(i int) interface{} {
+func (slice *nx{{ $uname }}Slice) nxItem(i int) interface{} {
   return (*slice)[i]
 }
 
-func (slice *{{ $name }}Slice) nxAppend(item interface{}) {
-  obj := (*{{ $name }})(nil)
+func (slice *nx{{ $uname }}Slice) nxAppend(item interface{}) {
+  obj := (*{{ $uname }})(nil)
   if item != nil {
-    obj = item.(*{{ $name }})
+    obj = item.(*{{ $uname }})
   }
   *slice = append(*slice, obj)
 }

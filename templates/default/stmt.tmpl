@@ -26,70 +26,33 @@ var (
 
 {{ range $stmt := .Stmts }}
 
-  {{ $name := UpperCamel $stmt.StmtName }}
+  {{ $name := $stmt.StmtName }}
+  {{ $uname := $stmt.UName }}
   {{ $type := $stmt.StmtType }}
   {{ $args := ExtractArgsInfo $stmt}}
   {{ $vars := ExtractVarsInfo $stmt}}
   {{ $wcs := ExtractWildcardsInfo $stmt}}
 
+  {{ $flagSingleWildcard := $wcs.SingleWildcard }}
+  {{ $flagHasWildcard := gt (len $wcs.Wildcards) 0 }}
   {{ $flagUseTemplate := $vars.Has "use_template" }}
   {{ $flagInQuery := $vars.Has "in_query" }}
-  {{ $flagSingleWildcard := $wcs.SingleWildcard }}
-
-var (
-  {{ if $flagUseTemplate -}}
-  nx{{ $name }}QueryTmpl = template.Must(template.New("{{ $name }}").Parse({{ printf "%+q" $stmt.Text }}))
-  {{ else -}}
-  nx{{ $name }}Query = {{ printf "%+q" $stmt.Text }}
-  {{ end -}}
-)
-
-func nxBuild{{ $name }}Query(data map[string]interface{}) (string, []interface{}, error) {
-  {{ if $flagUseTemplate }}
-  // Template -> named query.
-  buf := bytes.Buffer{}
-  if err := nx{{ $name }}QueryTmpl.Execute(&buf, data); err != nil {
-    return "", nil, err
-  }
-  namedQuery := buf.String()
-  {{ else }}
-  // Named query.
-  namedQuery := nx{{ $name }}Query
-  {{ end }}
-
-  // Named query -> query.
-  query, args, err := sqlx.Named(namedQuery, data)
-  if err != nil {
-    return "", nil, err
-  }
-
-  {{ if $flagInQuery }}
-  // Expand "in" args.
-  query, args, err = sqlx.In(query, args)
-  if err != nil {
-    return "", nil, err
-  }
-  {{ end }}
-
-  return query, args, nil
-}
+  {{ $flagReturnOne := eq ($vars.Value "return") "one" }}
 
   {{ if eq $type "SELECT"}}
 
-    {{ $flagReturnOne := eq ($vars.Value "return") "one" }}
-    {{ $flagHasWildcard := gt (len $wcs.Wildcards) 0 }}
-    {{ $resultName := Ternary $wcs.SingleWildcard (UpperCamel (index $wcs.Wildcards 0).Table.TableName) (printf "%sResult" $name) }}
+    {{ $resultName := Ternary $flagSingleWildcard (UpperCamel (index $wcs.Wildcards 0).Table.TableName) (printf "%sResult" $uname) }}
 
-    {{ if not $wcs.SingleWildcard }}
+    {{ if not $flagSingleWildcard }}
 
-// {{ $resultName }} is the result of {{ $name }}.
+// {{ $resultName }} is the result of {{ $uname }}.
 type {{ $resultName }} struct {
       {{ range $i, $col := $stmt.QueryResultCols -}}
-        {{ $wcCol := $wcs.WildcardColumn $i -}}
-        {{ $wcName := $wcs.WildcardName $i -}}
+        {{ $wc := $wcs.ResultCol2Wildcard $i -}}
+        {{ $wcCol := $wcs.ResultCol2WildcardCol $i -}}
         {{ if $wcCol.Valid -}}
           {{ if eq $wcCol.Pos 0 -}}
-  {{ UpperCamel $wcName }} *{{ UpperCamel $wcCol.Table.TableName }}
+  {{ $wc.UName }} *{{ $wcCol.Table.UName }}
           {{ end -}}
         {{ else -}}
   {{ UpperCamel $col.Name }} {{ ScanType $col }}
@@ -97,25 +60,17 @@ type {{ $resultName }} struct {
       {{ end -}}
 
       {{ range $wc := $wcs.Wildcards -}}
-  nxNull{{ UpperCamel $wc.WildcardName }} nxNull{{ UpperCamel $wc.Table.TableName }}
+  nxNull{{ $wc.UName }} nxNull{{ $wc.Table.UName }}
       {{ end -}}
 }
 
-      {{ if and (not $flagReturnOne) $flagHasWildcard }}
-// {{ $resultName }}Slice is slice of {{ $resultName }}.
-type {{ $resultName }}Slice []*{{ $resultName }}
-
-// nx{{ $resultName }}Slices is slice of {{ $resultName }}Slice.
-type nx{{ $resultName }}Slices []{{ $resultName }}Slice
-      {{ end }}
-
 func (result *{{ $resultName }}) nxPreScan(dest *[]interface{}) {
       {{ range $i, $col := $stmt.QueryResultCols -}}
-        {{ $wcCol := $wcs.WildcardColumn $i -}}
-        {{ $wcName := $wcs.WildcardName $i -}}
+        {{ $wc := $wcs.ResultCol2Wildcard $i -}}
+        {{ $wcCol := $wcs.ResultCol2WildcardCol $i -}}
         {{ if $wcCol.Valid -}}
           {{ if eq $wcCol.Pos 0 -}}
-  result.nxNull{{ UpperCamel $wcName }}.nxPreScan(dest)
+  result.nxNull{{ $wc.UName }}.nxPreScan(dest)
           {{ end -}}
         {{ else -}}
   *dest = append(*dest, &result.{{ UpperCamel $col.Name }})
@@ -125,15 +80,22 @@ func (result *{{ $resultName }}) nxPreScan(dest *[]interface{}) {
 
 func (result *{{ $resultName }}) nxPostScan() error {
       {{ range $wc := $wcs.Wildcards -}}
-        {{ $wcName := UpperCamel $wc.WildcardName }}
-  if err := result.nxNull{{ $wcName }}.nxPostScan(); err != nil {
+  if err := result.nxNull{{ $wc.UName }}.nxPostScan(); err != nil {
     return err
   }
-  result.{{ $wcName }} = result.nxNull{{ $wcName }}.Ordinary()
+  result.{{ $wc.UName }} = result.nxNull{{ $wc.UName }}.Ordinary()
       {{ end }}
   return nil
 }
+
       {{ if and (not $flagReturnOne) $flagHasWildcard }}
+
+// {{ $resultName }}Slice is slice of {{ $resultName }}.
+type {{ $resultName }}Slice []*{{ $resultName }}
+
+// nx{{ $resultName }}Slices is slice of {{ $resultName }}Slice.
+type nx{{ $resultName }}Slices []{{ $resultName }}Slice
+
 func (slice *{{ $resultName }}Slice) nxLen() int {
   return len(*slice)
 }
@@ -150,6 +112,24 @@ func (slice *{{ $resultName }}Slice) nxAppend(item interface{}) {
   *slice = append(*slice, obj)
 }
 
+func (slice *{{ $resultName }}Slice) One() *{{ $resultName }} {
+  if len(*slice) != 1 {
+    panic(fmt.Errorf("{{ $resultName }}Slice.One has %d rows", len(*slice)))
+  }
+  return (*slice)[0]
+}
+  
+        {{ range $wc := $wcs.Wildcards }}{{ if $wc.Table.Primary.Valid }}
+func (slice *{{ $resultName }}Slice) Distinct{{ $wc.UName }}() ([]*{{ $wc.Table.UName }}, []{{ $resultName }}Slice) {
+  trs := nx{{ $wc.Table.UName }}Slice{}
+  groups := nx{{ $resultName }}Slices{}
+  groupBy(slice, func(item interface{}) TableRowWithPrimary {
+    return item.(*{{ $resultName }}).{{ $wc.UName }}
+  }, &trs, &groups)
+  return trs, groups
+}
+        {{ end }}{{ end }}
+
 func (slices *nx{{ $resultName }}Slices) nxLen() int {
   return len(*slices)
 }
@@ -162,15 +142,15 @@ func (slices *nx{{ $resultName }}Slices) nxAppend() {
   *slices = append(*slices, nil)
 }
 
-      {{ end }}
+      {{ end }} {{/*{{ if and (not $flagReturnOne) $flagHasWildcard }}*/}}
 
-    {{ end }} {{/*{{ if not $wcs.SingleWildcard }}*/}}
+    {{ end }} {{/*{{ if not $flagSingleWildcard }}*/}}
       
-func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {{ $arg.ArgName }} {{ $arg.ArgType }}{{ end }}) ({{ if $flagReturnOne }}*{{ $resultName }}{{ else }}{{ $resultName }}Slice{{ end }}, error) {
+func {{ $uname }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {{ $arg.ArgName }} {{ $arg.ArgType }}{{ end }}) ({{ if $flagReturnOne }}*{{ $resultName }}{{ else }}{{ $resultName }}Slice{{ end }}, error) {
   // NOTE: Add a nested block to allow identifier shadowing.
   {
     // Build query.
-    query, args, err := nxBuild{{ $name }}Query(map[string]interface{}{
+    query, args, err := nxBuild{{ $uname }}Query(map[string]interface{}{
       {{ range $arg := $args.Args -}}
       "{{ $arg.ArgName }}": {{ $arg.ArgName }},
       {{ end -}}
@@ -244,6 +224,44 @@ func {{ $name }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {
 
 
   {{ end }} {{/*{{ if eq $type "SELECT"}}*/}}
+
+var (
+  {{ if $flagUseTemplate -}}
+  nx{{ $uname }}QueryTmpl = template.Must(template.New("{{ $uname }}").Parse({{ printf "%+q" $stmt.Text }}))
+  {{ else -}}
+  nx{{ $uname }}Query = {{ printf "%+q" $stmt.Text }}
+  {{ end -}}
+)
+
+func nxBuild{{ $uname }}Query(data map[string]interface{}) (string, []interface{}, error) {
+  {{ if $flagUseTemplate }}
+  // Template -> named query.
+  buf := bytes.Buffer{}
+  if err := nx{{ $uname }}QueryTmpl.Execute(&buf, data); err != nil {
+    return "", nil, err
+  }
+  namedQuery := buf.String()
+  {{ else }}
+  // Named query.
+  namedQuery := nx{{ $uname }}Query
+  {{ end }}
+
+  // Named query -> query.
+  query, args, err := sqlx.Named(namedQuery, data)
+  if err != nil {
+    return "", nil, err
+  }
+
+  {{ if $flagInQuery }}
+  // Expand "in" args.
+  query, args, err = sqlx.In(query, args)
+  if err != nil {
+    return "", nil, err
+  }
+  {{ end }}
+
+  return query, args, nil
+}
 
 
 {{ end }} {{/*{{ range $stmt := .Stmts }}*/}}
