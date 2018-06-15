@@ -18,7 +18,7 @@ type StmtInfo struct {
 	stmtType        string        // 'SELECT'/'UPDATE'/'INSERT'/'DELETE'
 	queryResultCols []datasrc.Col // For SELECT stmt only
 	text            string        // Construct by TextFragment
-	uname           string
+	camel           utils.CamelName
 
 	locals map[interface{}]interface{} // directive locals
 }
@@ -47,6 +47,7 @@ func NewStmtInfo(loader *datasrc.Loader, db *DBInfo, stmtElem *etree.Element) (*
 		if info.stmtName == "" {
 			return nil, fmt.Errorf("Missing 'name' attribute of <%s>", info.stmtType)
 		}
+		info.camel = utils.NewCamelName(info.stmtName)
 	}
 
 	// Convert to directives and Initialize.
@@ -190,13 +191,15 @@ func (info *StmtInfo) UName() string {
 	if info == nil {
 		return ""
 	}
-	if info.uname == "" {
-		info.uname = utils.UpperCamel(info.stmtName)
-		if info.uname == "" {
-			panic(fmt.Errorf("Stmt %+q has no valid UName", info.stmtName))
-		}
+	return info.camel.UName
+}
+
+// LName is the lower camel case of stmt name.
+func (info *StmtInfo) LName() string {
+	if info == nil {
+		return ""
 	}
-	return info.uname
+	return info.camel.LName
 }
 
 // StmtName returns the name of the StmtInfo. It returns "" if info is nil.

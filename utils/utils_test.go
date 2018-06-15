@@ -6,6 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type Tst struct {
+	CamelName
+}
+
 func TestCamel(t *testing.T) {
 
 	assert := assert.New(t)
@@ -24,6 +28,20 @@ func TestCamel(t *testing.T) {
 		assert.Equal(testCase.ExpectUpper, camel(testCase.Origin, true))
 		assert.Equal(testCase.ExpectLower, camel(testCase.Origin, false))
 
+	}
+
+}
+
+func TestCamelName(t *testing.T) {
+
+	assert := assert.New(t)
+
+	{
+		assert.Panics(func() {
+			_ = Tst{
+				CamelName: NewCamelName("^^^^^^"),
+			}
+		})
 	}
 
 }

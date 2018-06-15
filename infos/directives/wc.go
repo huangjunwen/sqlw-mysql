@@ -24,7 +24,7 @@ type WildcardInfo struct {
 	table  *infos.TableInfo
 	alias  string
 	offset int // Offset in result columns.
-	uname  string
+	camel  utils.CamelName
 }
 
 type wcDirective struct {
@@ -167,6 +167,7 @@ func newWildcardsInfo(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.Stmt
 					alias:  directive.alias,
 					offset: len(resultCols2),
 				}
+				curWildcardInfo.camel = utils.NewCamelName(curWildcardInfo.WildcardName())
 				curN = n
 				info.wildcards = append(info.wildcards, curWildcardInfo)
 			} else {
@@ -323,13 +324,15 @@ func (info *WildcardInfo) UName() string {
 	if info == nil {
 		return ""
 	}
-	if info.uname == "" {
-		info.uname = utils.UpperCamel(info.WildcardName())
-		if info.uname == "" {
-			panic(fmt.Errorf("Wildcard %+q has not valid UName", info.WildcardName()))
-		}
+	return info.camel.UName
+}
+
+// LName is the lower camel case of WildcardName.
+func (info *WildcardInfo) LName() string {
+	if info == nil {
+		return ""
 	}
-	return info.uname
+	return info.camel.LName
 }
 
 func (d *wcDirective) Initialize(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.StmtInfo, tok etree.Token) error {

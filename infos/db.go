@@ -25,14 +25,14 @@ type TableInfo struct {
 	fkNames       map[string]int
 	primary       *IndexInfo  // nil if not exists
 	autoIncColumn *ColumnInfo // nil if not exists
-	uname         string      // Upper camel name
+	camel         utils.CamelName
 }
 
 // ColumnInfo contains information of a table column.
 type ColumnInfo struct {
 	table  *TableInfo
 	column datasrc.Column
-	uname  string // Upper camel name
+	camel  utils.CamelName
 }
 
 // IndexInfo contains information of an index.
@@ -42,7 +42,7 @@ type IndexInfo struct {
 	columns   []*ColumnInfo
 	isPrimary bool
 	isUnique  bool
-	uname     string // Upper camel name
+	camel     utils.CamelName
 }
 
 // FKInfo contains information of a foreign key constraint.
@@ -52,7 +52,7 @@ type FKInfo struct {
 	columns        []*ColumnInfo
 	refTableName   string
 	refColumnNames []string
-	uname          string // Upper camel name
+	camel          utils.CamelName
 }
 
 // NewDBInfo extracts information from current database.
@@ -75,6 +75,7 @@ func NewDBInfo(loader *datasrc.Loader) (*DBInfo, error) {
 			columnNames: make(map[string]int),
 			indexNames:  make(map[string]int),
 			fkNames:     make(map[string]int),
+			camel:       utils.NewCamelName(tableName),
 		}
 
 		// Columns info
@@ -87,6 +88,7 @@ func NewDBInfo(loader *datasrc.Loader) (*DBInfo, error) {
 			column := &ColumnInfo{
 				table:  table,
 				column: col,
+				camel:  utils.NewCamelName(col.Name),
 			}
 			table.columns = append(table.columns, column)
 			table.columnNames[col.Name] = len(table.columns) - 1
@@ -118,6 +120,7 @@ func NewDBInfo(loader *datasrc.Loader) (*DBInfo, error) {
 				indexName: indexName,
 				isPrimary: isPrimary,
 				isUnique:  isUnique,
+				camel:     utils.NewCamelName(indexName),
 			}
 
 			for _, columnName := range columnNames {
@@ -150,6 +153,7 @@ func NewDBInfo(loader *datasrc.Loader) (*DBInfo, error) {
 				table:          table,
 				refTableName:   refTableName,
 				refColumnNames: refColumnNames,
+				camel:          utils.NewCamelName(fkName),
 			}
 
 			for _, columnName := range columnNames {
@@ -224,13 +228,15 @@ func (info *TableInfo) UName() string {
 	if info == nil {
 		return ""
 	}
-	if info.uname == "" {
-		info.uname = utils.UpperCamel(info.tableName)
-		if info.uname == "" {
-			panic(fmt.Errorf("Table %+q has no valid UName", info.tableName))
-		}
+	return info.camel.UName
+}
+
+// LName is the lower camel case of the table name.
+func (info *TableInfo) LName() string {
+	if info == nil {
+		return ""
 	}
-	return info.uname
+	return info.camel.LName
 }
 
 // TableName returns the table name or "" if info is nil.
@@ -378,13 +384,15 @@ func (info *ColumnInfo) UName() string {
 	if info == nil {
 		return ""
 	}
-	if info.uname == "" {
-		info.uname = utils.UpperCamel(info.ColumnName())
-		if info.uname == "" {
-			panic(fmt.Errorf("Column %+q has no valid UName", info.ColumnName()))
-		}
+	return info.camel.UName
+}
+
+// LName is the lower camel case of the column name.
+func (info *ColumnInfo) LName() string {
+	if info == nil {
+		return ""
 	}
-	return info.uname
+	return info.camel.LName
 }
 
 // Table returns the tabe. It returns nil if info is nil.
@@ -453,13 +461,15 @@ func (info *IndexInfo) UName() string {
 	if info == nil {
 		return ""
 	}
-	if info.uname == "" {
-		info.uname = utils.UpperCamel(info.indexName)
-		if info.uname == "" {
-			panic(fmt.Errorf("Index %+q has no valid UName", info.indexName))
-		}
+	return info.camel.UName
+}
+
+// LName is upper camel case of the index name.
+func (info *IndexInfo) LName() string {
+	if info == nil {
+		return ""
 	}
-	return info.uname
+	return info.camel.LName
 }
 
 // IndexName returns the name of the index. It returns "" if info is nil.
@@ -512,13 +522,15 @@ func (info *FKInfo) UName() string {
 	if info == nil {
 		return ""
 	}
-	if info.uname == "" {
-		info.uname = utils.UpperCamel(info.fkName)
-		if info.uname == "" {
-			panic(fmt.Errorf("FK %+q has no valid UName", info.fkName))
-		}
+	return info.camel.UName
+}
+
+// LName is lower camel case of the fk name.
+func (info *FKInfo) LName() string {
+	if info == nil {
+		return ""
 	}
-	return info.uname
+	return info.camel.LName
 }
 
 // FKName returns the name of foreign key. It returns "" if info is nil.
