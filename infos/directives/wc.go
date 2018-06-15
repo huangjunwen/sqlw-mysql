@@ -10,6 +10,7 @@ import (
 	"github.com/beevik/etree"
 	"github.com/huangjunwen/sqlw-mysql/datasrc"
 	"github.com/huangjunwen/sqlw-mysql/infos"
+	"github.com/huangjunwen/sqlw-mysql/utils"
 )
 
 // WildcardsInfo contains wildcard expansions information in a SELECT statement.
@@ -23,6 +24,7 @@ type WildcardInfo struct {
 	table  *infos.TableInfo
 	alias  string
 	offset int // Offset in result columns.
+	uname  string
 }
 
 type wcDirective struct {
@@ -251,20 +253,20 @@ func (info *WildcardsInfo) WildcardColumn(i int) *infos.ColumnInfo {
 	return wildcard.table.Column(i - wildcard.offset)
 }
 
-// WildcardName returns the wildcard name of the i-th query result column.
-// It returns "" if info is nil or i is out of range, or the i-th query result column is not from a wildcard expansion.
-func (info *WildcardsInfo) WildcardName(i int) string {
+// Wildcard returns the wildcard of the i-th query result column.
+// It returns nil if info is nil or i is out of range, or the i-th query result column is not from a wildcard expansion.
+func (info *WildcardsInfo) Wildcard(i int) *WildcardInfo {
 	if info == nil {
-		return ""
+		return nil
 	}
 	if i < 0 || i >= len(info.resultCols2Wildcard) {
-		return ""
+		return nil
 	}
 	idx := info.resultCols2Wildcard[i]
 	if idx < 0 {
-		return ""
+		return nil
 	}
-	return info.wildcards[idx].WildcardName()
+	return info.wildcards[idx]
 
 }
 
@@ -314,6 +316,20 @@ func (info *WildcardInfo) Offset() int {
 		return -1
 	}
 	return info.offset
+}
+
+// UName is the upper camel case of WildcardName.
+func (info *WildcardInfo) UName() string {
+	if info == nil {
+		return ""
+	}
+	if info.uname == "" {
+		info.uname = utils.UpperCamel(info.WildcardName())
+		if info.uname == "" {
+			panic(fmt.Errorf("Wildcard %+q has not valid UName", info.WildcardName()))
+		}
+	}
+	return info.uname
 }
 
 func (d *wcDirective) Initialize(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.StmtInfo, tok etree.Token) error {

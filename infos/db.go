@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/huangjunwen/sqlw-mysql/datasrc"
+	"github.com/huangjunwen/sqlw-mysql/utils"
 )
 
 // DBInfo contains information of a database.
@@ -24,12 +25,14 @@ type TableInfo struct {
 	fkNames       map[string]int
 	primary       *IndexInfo  // nil if not exists
 	autoIncColumn *ColumnInfo // nil if not exists
+	uname         string      // Upper camel name
 }
 
 // ColumnInfo contains information of a table column.
 type ColumnInfo struct {
 	table  *TableInfo
 	column datasrc.Column
+	uname  string // Upper camel name
 }
 
 // IndexInfo contains information of an index.
@@ -39,6 +42,7 @@ type IndexInfo struct {
 	columns   []*ColumnInfo
 	isPrimary bool
 	isUnique  bool
+	uname     string // Upper camel name
 }
 
 // FKInfo contains information of a foreign key constraint.
@@ -48,6 +52,7 @@ type FKInfo struct {
 	columns        []*ColumnInfo
 	refTableName   string
 	refColumnNames []string
+	uname          string // Upper camel name
 }
 
 // NewDBInfo extracts information from current database.
@@ -214,9 +219,18 @@ func (info *TableInfo) Valid() bool {
 	return info != nil
 }
 
-// String is the same of TableName.
-func (info *TableInfo) String() string {
-	return info.TableName()
+// UName is the upper camel case of the table name.
+func (info *TableInfo) UName() string {
+	if info == nil {
+		return ""
+	}
+	if info.uname == "" {
+		info.uname = utils.UpperCamel(info.tableName)
+		if info.uname == "" {
+			panic(fmt.Errorf("Table %+q has no valid UName", info.tableName))
+		}
+	}
+	return info.uname
 }
 
 // TableName returns the table name or "" if info is nil.
@@ -359,9 +373,18 @@ func (info *ColumnInfo) Valid() bool {
 	return info != nil
 }
 
-// String is same as ColumnName.
-func (info *ColumnInfo) String() string {
-	return info.ColumnName()
+// UName is the upper camel case of the column name.
+func (info *ColumnInfo) UName() string {
+	if info == nil {
+		return ""
+	}
+	if info.uname == "" {
+		info.uname = utils.UpperCamel(info.ColumnName())
+		if info.uname == "" {
+			panic(fmt.Errorf("Column %+q has no valid UName", info.ColumnName()))
+		}
+	}
+	return info.uname
 }
 
 // Table returns the tabe. It returns nil if info is nil.
@@ -425,9 +448,18 @@ func (info *IndexInfo) Valid() bool {
 	return info != nil
 }
 
-// String is same as IndexName.
-func (info *IndexInfo) String() string {
-	return info.IndexName()
+// UName is upper camel case of the index name.
+func (info *IndexInfo) UName() string {
+	if info == nil {
+		return ""
+	}
+	if info.uname == "" {
+		info.uname = utils.UpperCamel(info.indexName)
+		if info.uname == "" {
+			panic(fmt.Errorf("Index %+q has no valid UName", info.indexName))
+		}
+	}
+	return info.uname
 }
 
 // IndexName returns the name of the index. It returns "" if info is nil.
@@ -475,9 +507,18 @@ func (info *FKInfo) Valid() bool {
 	return info != nil
 }
 
-// String is same as FKName.
-func (info *FKInfo) String() string {
-	return info.FKName()
+// UName is upper camel case of the fk name.
+func (info *FKInfo) UName() string {
+	if info == nil {
+		return ""
+	}
+	if info.uname == "" {
+		info.uname = utils.UpperCamel(info.fkName)
+		if info.uname == "" {
+			panic(fmt.Errorf("FK %+q has no valid UName", info.fkName))
+		}
+	}
+	return info.uname
 }
 
 // FKName returns the name of foreign key. It returns "" if info is nil.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/beevik/etree"
 	"github.com/huangjunwen/sqlw-mysql/datasrc"
+	"github.com/huangjunwen/sqlw-mysql/utils"
 )
 
 // StmtInfo contains information of a statement.
@@ -17,6 +18,7 @@ type StmtInfo struct {
 	stmtType        string        // 'SELECT'/'UPDATE'/'INSERT'/'DELETE'
 	queryResultCols []datasrc.Col // For SELECT stmt only
 	text            string        // Construct by TextFragment
+	uname           string
 
 	locals map[interface{}]interface{} // directive locals
 }
@@ -183,9 +185,18 @@ func (info *StmtInfo) Valid() bool {
 	return info != nil
 }
 
-// String is same as StmtName.
-func (info *StmtInfo) String() string {
-	return info.StmtName()
+// UName is the upper camel case of stmt name.
+func (info *StmtInfo) UName() string {
+	if info == nil {
+		return ""
+	}
+	if info.uname == "" {
+		info.uname = utils.UpperCamel(info.stmtName)
+		if info.uname == "" {
+			panic(fmt.Errorf("Stmt %+q has no valid UName", info.stmtName))
+		}
+	}
+	return info.uname
 }
 
 // StmtName returns the name of the StmtInfo. It returns "" if info is nil.
