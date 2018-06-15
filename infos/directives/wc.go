@@ -229,34 +229,9 @@ func (info *WildcardsInfo) Valid() bool {
 	return info != nil
 }
 
-// Wildcards returns all WildcardInfo in a statement.
-func (info *WildcardsInfo) Wildcards() []*WildcardInfo {
-	if info == nil {
-		return nil
-	}
-	return info.wildcards
-}
-
-// WildcardColumn returns the i-th query result column as a wildcard expansion table column.
+// ResultCol2Wildcard returns the wildcard expansion of the i-th query result column.
 // It returns nil if info is nil or i is out of range, or the i-th query result column is not from a wildcard expansion.
-func (info *WildcardsInfo) WildcardColumn(i int) *infos.ColumnInfo {
-	if info == nil {
-		return nil
-	}
-	if i < 0 || i >= len(info.resultCols2Wildcard) {
-		return nil
-	}
-	idx := info.resultCols2Wildcard[i]
-	if idx < 0 {
-		return nil
-	}
-	wildcard := info.wildcards[idx]
-	return wildcard.table.Column(i - wildcard.offset)
-}
-
-// Wildcard returns the wildcard of the i-th query result column.
-// It returns nil if info is nil or i is out of range, or the i-th query result column is not from a wildcard expansion.
-func (info *WildcardsInfo) Wildcard(i int) *WildcardInfo {
+func (info *WildcardsInfo) ResultCol2Wildcard(i int) *WildcardInfo {
 	if info == nil {
 		return nil
 	}
@@ -268,7 +243,43 @@ func (info *WildcardsInfo) Wildcard(i int) *WildcardInfo {
 		return nil
 	}
 	return info.wildcards[idx]
+}
 
+// ResultCol2WildcardCol returns the wildcard column of the i-th query result column.
+// It returns nil if info is nil or i is out of range, or the i-th query result column is not from a wildcard expansion.
+func (info *WildcardsInfo) ResultCol2WildcardCol(i int) *infos.ColumnInfo {
+	wildcard := info.ResultCol2Wildcard(i)
+	if !wildcard.Valid() {
+		return nil
+	}
+	return wildcard.table.Column(i - wildcard.offset)
+}
+
+// NumWildcard returns the number of wildcards or 0 if info is nil.
+func (info *WildcardsInfo) NumWildcard() int {
+	if info == nil {
+		return 0
+	}
+	return len(info.wildcards)
+}
+
+// Wildcard returns the i-th wildcard in the statement or nil if info is nil or i is out of range [0, NumWildcard()).
+func (info *WildcardsInfo) Wildcard(i int) *WildcardInfo {
+	if info == nil {
+		return nil
+	}
+	if i < 0 || i >= len(info.wildcards) {
+		return nil
+	}
+	return info.wildcards[i]
+}
+
+// Wildcards returns all WildcardInfo in a statement.
+func (info *WildcardsInfo) Wildcards() []*WildcardInfo {
+	if info == nil {
+		return nil
+	}
+	return info.wildcards
 }
 
 // SingleWildcard returns true if result columns of the statement are all from a single wildcard expansion.
