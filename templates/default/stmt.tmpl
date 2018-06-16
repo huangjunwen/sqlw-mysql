@@ -254,7 +254,7 @@ func nxBuild{{ $uname }}Query(data map[string]interface{}) (string, []interface{
 
   {{ if $flagInQuery }}
   // Expand "in" args.
-  query, args, err = sqlx.In(query, args)
+  query, args, err = sqlx.In(query, args...)
   if err != nil {
     return "", nil, err
   }
