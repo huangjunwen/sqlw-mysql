@@ -584,3 +584,39 @@ func (info *FKInfo) RefColumns() []*ColumnInfo {
 	}
 	return refColumns
 }
+
+// RefUniqueIndex returns the referenced unique index.
+// NOTE: It only returns unique index that have exactly the same group of columns as the referenced columns.
+// See: https://dev.mysql.com/doc/refman/5.6/en/create-table-foreign-keys.html
+//   InnoDB permits a foreign key to reference any column or group of columns. However, in the referenced table,
+//   there must be an index where the referenced columns are listed as the first columns in the same order.
+//   NDB requires an explicit unique key (or primary key) on any column referenced as a foreign key.
+func (info *FKInfo) RefUniqueIndex() *IndexInfo {
+	if info == nil {
+		return nil
+	}
+	refTable := info.RefTable()
+	if refTable == nil {
+		return nil
+	}
+
+OUTER:
+	for _, index := range refTable.Indices() {
+		// Skip if index is not unique.
+		if !index.IsUnique() {
+			continue
+		}
+		// Skip if index columns are not the same as ref column names.
+		indexColumns := index.Columns()
+		if len(indexColumns) != len(info.refColumnNames) {
+			continue
+		}
+		for i, refColumnName := range info.refColumnNames {
+			if refColumnName != indexColumns[i].ColumnName() {
+				continue OUTER
+			}
+		}
+		return index
+	}
+	return nil
+}
