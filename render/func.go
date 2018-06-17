@@ -33,17 +33,22 @@ func ternary(b bool, t interface{}, f interface{}) interface{} {
 	return f
 }
 
+func errorf(format string, a ...interface{}) (string, error) {
+	return "", fmt.Errorf(format, a...)
+}
+
 func (r *Renderer) funcMap() template.FuncMap {
 
 	return template.FuncMap{
-
-		"UpperCamel": utils.UpperCamel,
-
-		"LowerCamel": utils.LowerCamel,
+		"Errorf": errorf,
 
 		"Slice": slice,
 
 		"Ternary": ternary,
+
+		"UpperCamel": utils.UpperCamel,
+
+		"LowerCamel": utils.LowerCamel,
 
 		"ScanType": func(s interface{}) (string, error) {
 			return r.scanTypeMap.ScanType(s)
