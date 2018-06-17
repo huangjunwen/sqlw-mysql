@@ -170,9 +170,31 @@ func (tr *{{ $uname }}) Copy() *{{ $uname }} {
   return ret
 }
 
+{{ range $fk := .Table.FKs -}}
+  {{ $refTable := $fk.RefTable -}}
+  {{ $refIndex := $fk.RefUniqueIndex -}}
+  {{ if $refIndex.Valid -}}
+// {{ $refTable.UName }}By{{ $fk.UName }} returns the associated {{ $refTable.UName }} row by `{{ $fk.UName }}` foreign key, column(s):{{ range $col := $fk.Columns }} `{{ $col.ColumnName }}`{{ end }}.
+func (tr *{{ $uname }}) {{ $refTable.UName }}By{{ $fk.UName }}(ctx context.Context, q Queryer, lock bool) (*{{ $refTable.UName }}, error) {
+  {{ range $col := $fk.Columns -}}
+    {{ if $col.Nullable -}}
+  if !tr.{{ $col.UName }}.Valid {
+    return nil, nil
+  } 
+  {{ $col.LName }} := tr.{{ $col.UName }}.{{ Slice (NullScanType $col) 5 }}
+    {{ else -}}
+  {{ $col.LName }} := tr.{{ $col.UName }}
+    {{ end -}}
+  {{ end }}
+
+  return {{ $refTable.UName }}By{{ $refIndex.UName }}(ctx, q{{ range $col := $fk.Columns }}, {{ $col.LName }}{{ end }}, lock)
+}
+  {{ end -}}
+{{ end -}}
+
 {{ range $index := .Table.Indices -}}
-{{ if $index.IsUnique -}}
-// {{ $uname }}By{{ $index.UName }} is used to select `{{ $name }}` row by key `{{ $index.IndexName }}`.
+  {{ if $index.IsUnique -}}
+// {{ $uname }}By{{ $index.UName }} is used to select `{{ $name }}` row by `{{ $index.IndexName }}` index.
 func {{ $uname }}By{{ $index.UName }}(ctx context.Context, q Queryer{{ range $col := $index.Columns }}, {{ $col.LName }} {{ NotNullScanType $col }}{{ end }}, lock bool) (*{{ $uname }}, error){
   tr := {{ $uname }}{}
   if err := selectTRCond(ctx, q, &tr, lock, "1{{ range $col := $index.Columns }} AND `{{ $col.ColumnName }}`=?{{ end }}",
@@ -184,7 +206,7 @@ func {{ $uname }}By{{ $index.UName }}(ctx context.Context, q Queryer{{ range $co
   }
   return &tr, nil
 }
-{{ end -}}
+  {{ end -}}
 {{ end }}
 
 // nxPreScan appends all columns to dest for scanning. Implements ColumnScanner interface.
