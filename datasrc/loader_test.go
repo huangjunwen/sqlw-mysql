@@ -223,8 +223,7 @@ func TestLoadIndex(t *testing.T) {
 	{
 		columnNames, isPrimary, isUnique, err := loader.LoadIndex("indices", "PRIMARY")
 		assert.NoError(err)
-		assert.Len(columnNames, 1)
-		assert.Equal("a", columnNames[0])
+		assert.Equal([]string{"a"}, columnNames)
 		assert.True(isPrimary)
 		assert.True(isUnique)
 	}
@@ -232,8 +231,7 @@ func TestLoadIndex(t *testing.T) {
 	{
 		columnNames, isPrimary, isUnique, err := loader.LoadIndex("indices", "idx_b")
 		assert.NoError(err)
-		assert.Len(columnNames, 1)
-		assert.Equal("b", columnNames[0])
+		assert.Equal([]string{"b"}, columnNames)
 		assert.False(isPrimary)
 		assert.True(isUnique)
 	}
@@ -241,9 +239,7 @@ func TestLoadIndex(t *testing.T) {
 	{
 		columnNames, isPrimary, isUnique, err := loader.LoadIndex("indices", "idx_cd")
 		assert.NoError(err)
-		assert.Len(columnNames, 2)
-		assert.Equal("c", columnNames[0])
-		assert.Equal("d", columnNames[1])
+		assert.Equal([]string{"c", "d"}, columnNames)
 		assert.False(isPrimary)
 		assert.False(isUnique)
 	}
@@ -289,12 +285,8 @@ func TestLoadFK(t *testing.T) {
 		columnNames, refTableName, refColumnNames, err := loader.LoadFK("b", fkName)
 		assert.NoError(err)
 		assert.Equal("a", refTableName)
-		assert.Len(columnNames, 2)
-		assert.Len(refColumnNames, 2)
-		assert.Equal("au1", columnNames[0])
-		assert.Equal("au2", columnNames[1])
-		assert.Equal("u1", refColumnNames[0])
-		assert.Equal("u2", refColumnNames[1])
+		assert.Equal([]string{"au1", "au2"}, columnNames)
+		assert.Equal([]string{"u1", "u2"}, refColumnNames)
 	}
 
 }

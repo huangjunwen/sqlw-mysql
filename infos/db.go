@@ -294,9 +294,12 @@ func (info *TableInfo) NumIndex() int {
 	return len(info.indices)
 }
 
-// Index returns the i-th index in the table. It returns nil if info is nil.
+// Index returns the i-th index in the table. It returns nil if info is nil or i is out of range.
 func (info *TableInfo) Index(i int) *IndexInfo {
 	if info == nil {
+		return nil
+	}
+	if i < 0 || i >= len(info.indices) {
 		return nil
 	}
 	return info.indices[i]
@@ -330,9 +333,12 @@ func (info *TableInfo) NumFK() int {
 	return len(info.fks)
 }
 
-// FK returns the i-th foreign key in the table. It returns nil if info is nil.
+// FK returns the i-th foreign key in the table. It returns nil if info is nil or i is out of range.
 func (info *TableInfo) FK(i int) *FKInfo {
 	if info == nil {
+		return nil
+	}
+	if i < 0 || i >= len(info.fks) {
 		return nil
 	}
 	return info.fks[i]
