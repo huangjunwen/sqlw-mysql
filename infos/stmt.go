@@ -12,6 +12,7 @@ import (
 
 // StmtInfo contains information of a statement.
 type StmtInfo struct {
+	stmtSrc         string
 	stmtName        string
 	directives      []TerminalDirective
 	query           string        // Construct by QueryFragment
@@ -39,6 +40,17 @@ func NewStmtInfo(loader *datasrc.Loader, db *DBInfo, stmtElem *etree.Element) (*
 
 	if stmtElem.Tag != "stmt" {
 		return nil, fmt.Errorf("Expect <stmt> but got <%s>", stmtElem.Tag)
+	}
+
+	// Src.
+	{
+		doc := etree.NewDocument()
+		doc.SetRoot(stmtElem)
+		src, err := doc.WriteToString()
+		if err != nil {
+			return nil, err
+		}
+		info.stmtSrc = src
 	}
 
 	// Name attribute.
@@ -200,6 +212,14 @@ func (info *StmtInfo) LName() string {
 		return ""
 	}
 	return info.camel.LName
+}
+
+// StmtSrc returns the source xml of this statement. It returns "" if info is nil.
+func (info *StmtInfo) StmtSrc() string {
+	if info == nil {
+		return ""
+	}
+	return info.stmtSrc
 }
 
 // StmtName returns the name of the StmtInfo. It returns "" if info is nil.

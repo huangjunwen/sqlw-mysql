@@ -2,6 +2,7 @@ package render
 
 import (
 	"fmt"
+	"strings"
 	"text/template"
 
 	"github.com/huangjunwen/sqlw-mysql/infos/directives"
@@ -37,10 +38,16 @@ func errorf(format string, a ...interface{}) (string, error) {
 	return "", fmt.Errorf(format, a...)
 }
 
+func replace(s, old, new string) string {
+	return strings.Replace(s, old, new, -1)
+}
+
 func (r *Renderer) funcMap() template.FuncMap {
 
 	return template.FuncMap{
 		"Errorf": errorf,
+
+		"Replace": replace,
 
 		"Slice": slice,
 

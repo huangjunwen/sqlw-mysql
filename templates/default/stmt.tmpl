@@ -146,6 +146,11 @@ func (slices *nx{{ $resultName }}Slices) nxAppend() {
 
     {{ end }} {{/*{{ if not $flagSingleWildcard }}*/}}
       
+/*
+{{ $uname }} is created from:
+
+  {{ Replace $stmt.StmtSrc "\n" "\n  " }}
+*/
 func {{ $uname }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, {{ $arg.ArgName }} {{ $arg.ArgType }}{{ end }}) ({{ if $flagReturnOne }}*{{ $resultName }}{{ else }}{{ $resultName }}Slice{{ end }}, error) {
   // NOTE: Add a nested block to allow identifier shadowing.
   {
