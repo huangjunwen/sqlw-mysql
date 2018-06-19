@@ -60,7 +60,7 @@ func TestDBInfo(t *testing.T) {
 		var err error
 		db, err = NewDBInfo(loader)
 		assert.NoError(err)
-		assert.True(db.Valid())
+		assert.NotNil(db)
 
 	}
 
@@ -273,4 +273,68 @@ func TestDBInfo(t *testing.T) {
 
 	}
 
+}
+
+func TestRefUniqueIndex(t *testing.T) {
+
+	assert := assert.New(t)
+
+	exec("CREATE DATABASE refuniqueindex")
+	exec("USE refuniqueindex")
+	defer func() {
+		exec("DROP DATABASE refuniqueindex")
+	}()
+
+	exec(`
+	CREATE TABLE parent (
+		col1 INT,
+		col2 VARCHAR(32),
+		col3 TIMESTAMP,
+		col4 BOOL,
+		col5 VARCHAR(16),
+		KEY (col1, col2),
+		UNIQUE KEY (col3, col4),
+		UNIQUE KEY (col5)
+	)
+	`)
+
+	exec(`
+	CREATE TABLE child (
+		pcol1 INT,
+		pcol2 VARCHAR(32),
+		pcol3 TIMESTAMP,
+		pcol5 VARCHAR(16),
+		CONSTRAINT fk1 FOREIGN KEY (pcol1, pcol2) REFERENCES parent (col1, col2),
+		CONSTRAINT fk2 FOREIGN KEY (pcol3) REFERENCES parent (col3),
+		CONSTRAINT fk3 FOREIGN KEY (pcol5) REFERENCES parent (col5)
+	)
+	`)
+
+	db, err := NewDBInfo(loader)
+	assert.NoError(err)
+	assert.NotNil(db)
+
+	child := db.TableByName("child")
+	assert.NotNil(child)
+
+	// fk1: not unique key
+	{
+		fk := child.FKByName("fk1")
+		assert.NotNil(fk)
+		assert.Nil(fk.RefUniqueIndex())
+	}
+
+	// fk2: part of unique key
+	{
+		fk := child.FKByName("fk2")
+		assert.NotNil(fk)
+		assert.Nil(fk.RefUniqueIndex())
+	}
+
+	// fk3: ok
+	{
+		fk := child.FKByName("fk3")
+		assert.NotNil(fk)
+		assert.NotNil(fk.RefUniqueIndex())
+	}
 }
