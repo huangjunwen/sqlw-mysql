@@ -45,8 +45,8 @@ type nxNull{{ $uname }} struct {
   {{ end -}}{{ end -}}
 }
 
-// nx{{ $uname }}Slice is slice of {{ $uname }}.
-type nx{{ $uname }}Slice []*{{ $uname }}
+// {{ $uname }}Slice is slice of {{ $uname }}.
+type {{ $uname }}Slice []*{{ $uname }}
 
 var (
   nx{{ $uname }}Meta = NewTableMeta(
@@ -262,15 +262,15 @@ func (tr *nxNull{{ $uname }}) Ordinary() *{{ $uname }} {
   return tr.ordinaryPtr
 }
 
-func (slice *nx{{ $uname }}Slice) nxLen() int {
+func (slice *{{ $uname }}Slice) nxLen() int {
   return len(*slice)
 }
 
-func (slice *nx{{ $uname }}Slice) nxItem(i int) interface{} {
+func (slice *{{ $uname }}Slice) nxItem(i int) interface{} {
   return (*slice)[i]
 }
 
-func (slice *nx{{ $uname }}Slice) nxAppend(item interface{}) {
+func (slice *{{ $uname }}Slice) nxAppend(item interface{}) {
   obj := (*{{ $uname }})(nil)
   if item != nil {
     obj = item.(*{{ $uname }})

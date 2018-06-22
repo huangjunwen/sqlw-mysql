@@ -121,7 +121,7 @@ func (slice *{{ $resultName }}Slice) One() *{{ $resultName }} {
   
         {{ range $wc := $wcs.Wildcards }}{{ if $wc.Table.Primary.Valid }}
 func (slice *{{ $resultName }}Slice) Distinct{{ $wc.UName }}() ([]*{{ $wc.Table.UName }}, []{{ $resultName }}Slice) {
-  trs := nx{{ $wc.Table.UName }}Slice{}
+  trs := {{ $wc.Table.UName }}Slice{}
   groups := nx{{ $resultName }}Slices{}
   groupBy(slice, func(item interface{}) TableRowWithPrimary {
     return item.(*{{ $resultName }}).{{ $wc.UName }}
