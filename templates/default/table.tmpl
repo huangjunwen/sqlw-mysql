@@ -48,20 +48,6 @@ type nxNull{{ $uname }} struct {
 // {{ $uname }}Slice is slice of {{ $uname }}.
 type {{ $uname }}Slice []*{{ $uname }}
 
-var (
-  nx{{ $uname }}Meta = NewTableMeta(
-    "{{ $name }}",
-    []string{ {{- range $col := .Table.Columns }}"{{ $col.ColumnName }}", {{ end -}} },
-    OptColumnsWithDefault({{ range $col := .Table.Columns }}{{ if $col.HasDefaultValue }}"{{ $col.ColumnName }}", {{ end }}{{ end }}),
-    {{ if .Table.Primary.Valid -}}
-    OptPrimaryColumns({{ range $col := .Table.Primary.Columns }}"{{ $col.ColumnName }}", {{ end }}),
-    {{ end -}}
-    {{ if .Table.AutoIncColumn.Valid -}}
-    OptAutoIncColumn("{{ .Table.AutoIncColumn.ColumnName }}"),
-    {{ end -}}
-  )
-)
-
 // nxPreScan appends all columns to dest for scanning. Implements ColumnScanner interface.
 func (tr *{{ $uname }}) nxPreScan(dest *[]interface{}) {
   *dest = append(*dest,
@@ -75,6 +61,20 @@ func (tr *{{ $uname }}) nxPreScan(dest *[]interface{}) {
 func (tr *{{ $uname }}) nxPostScan() error { 
   return nil 
 }
+
+var (
+  nx{{ $uname }}Meta = NewTableMeta(
+    "{{ $name }}",
+    []string{ {{- range $col := .Table.Columns }}"{{ $col.ColumnName }}", {{ end -}} },
+    OptColumnsWithDefault({{ range $col := .Table.Columns }}{{ if $col.HasDefaultValue }}"{{ $col.ColumnName }}", {{ end }}{{ end }}),
+    {{ if .Table.Primary.Valid -}}
+    OptPrimaryColumns({{ range $col := .Table.Primary.Columns }}"{{ $col.ColumnName }}", {{ end }}),
+    {{ end -}}
+    {{ if .Table.AutoIncColumn.Valid -}}
+    OptAutoIncColumn("{{ .Table.AutoIncColumn.ColumnName }}"),
+    {{ end -}}
+  )
+)
 
 // TableMeta returns the table meta information of table `{{ $name }}`. Implements TableRow interface.
 func (tr *{{ $uname }}) TableMeta() *TableMeta {
@@ -98,7 +98,7 @@ func (tr *{{ $uname }}) ColumnValue(i int) interface{} {
   }
 }
 
-// ColumnPointe returns the i-th column's pointer of table `{{ $name }}`. Implements TableRow interface.
+// ColumnPointer returns the i-th column's pointer of table `{{ $name }}`. Implements TableRow interface.
 func (tr *{{ $uname }}) ColumnPointer(i int) interface{} {
   switch i {
   {{ range $i, $col := .Table.Columns -}}
