@@ -239,6 +239,29 @@ func {{ $uname }}(ctx context.Context, q Queryer{{ range $arg := $args.Args }}, 
 
   {{ else }} {{/*{{ if eq $type "SELECT"}}*/}}
 
+/*
+{{ $uname }} is created from:
+
+  {{ Replace $stmt.StmtSrc "\n" "\n  " }}
+*/
+func {{ $uname }}(ctx context.Context, e Execer{{ range $arg := $args.Args }}, {{ $arg.ArgName }} {{ $arg.ArgType }}{{ end }}) error {
+  // NOTE: Add a nested block to allow identifier shadowing.
+  {
+    // Build query.
+    query, args, err := nxBuild{{ $uname }}Query(map[string]interface{}{
+      {{ range $arg := $args.Args -}}
+      "{{ $arg.ArgName }}": {{ $arg.ArgName }},
+      {{ end -}}
+    })
+    if err != nil {
+      return err
+    }
+
+    // Execute.
+    _, err = e.ExecContext(ctx, query, args...)
+    return err
+  }
+}
 
   {{ end }} {{/*{{ if eq $type "SELECT"}}*/}}
 
