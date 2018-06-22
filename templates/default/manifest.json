@@ -6,7 +6,9 @@
     "etc": [
       "intf.tmpl",
       "meta.tmpl",
-      "group.tmpl"
+      "group.tmpl",
+      "test.tmpl",
+      "meta_test.tmpl"
     ]
   }
 }

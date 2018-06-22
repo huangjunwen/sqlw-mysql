@@ -280,7 +280,7 @@ func selectTRCond(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock b
 
   // If cond is empty, use primary condition.
   if cond == "" {
-    if len(args) == 0 {
+    if len(args) != 0 {
       return fmt.Errorf("SelectTRCond: cond is empty but args is not")
     }
     cond = meta.primaryCond
@@ -299,7 +299,7 @@ func selectTRCond(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock b
 
   // Query.
   row := q.QueryRowContext(ctx, query, args...)
-  if err := row.Scan(result); err != nil {
+  if err := row.Scan(result...); err != nil {
     return err
   }
 
