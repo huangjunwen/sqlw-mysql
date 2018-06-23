@@ -41,7 +41,7 @@ func WithTstMySQLServer(do func(context.Context) error) func(context.Context) er
 		// Get dockertest pool.
 		pool := DockertestPool()
 
-		// Get arguments from enviroment.
+		// Get arguments from environment.
 		ver := os.Getenv("MYSQL_VERSION")
 		if ver == "" {
 			ver = defaultMySQLVersion

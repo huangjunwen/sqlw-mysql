@@ -246,7 +246,7 @@ func (info *StmtInfo) Directives() []TerminalDirective {
 	return info.directives
 }
 
-// Text returns the statment text. It returns "" if info is nil.
+// Text returns the statement text. It returns "" if info is nil.
 func (info *StmtInfo) Text() string {
 	if info == nil {
 		return ""

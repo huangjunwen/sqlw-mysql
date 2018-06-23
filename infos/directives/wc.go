@@ -360,7 +360,7 @@ func (d *wcDirective) Initialize(loader *datasrc.Loader, db *infos.DBInfo, stmt 
 		return fmt.Errorf("Table %+q not found", tableName)
 	}
 
-	// Optinally alias
+	// Optional alias
 	alias := elem.SelectAttrValue("as", "")
 
 	// Set fields

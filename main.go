@@ -39,8 +39,8 @@ func main() {
 	flag.StringVar(&stmtDir, "stmt", "", "(Optional) Statement xmls directory.")
 	flag.StringVar(&outputDir, "out", "models", "(Optional) Output directory for generated code.")
 	flag.StringVar(&outputPkg, "pkg", "", "(Optional) Alternative package name of the generated code.")
-	flag.Var(&whitelist, "whitelist", "(Optional) Comma seperated table names to render.")
-	flag.Var(&blacklist, "blacklist", "(Optional) Comma seperated table names not to render.")
+	flag.Var(&whitelist, "whitelist", "(Optional) Comma separated table names to render.")
+	flag.Var(&blacklist, "blacklist", "(Optional) Comma separated table names not to render.")
 	flag.Parse()
 	if dsn == "" {
 		log.Fatalf("Missing -dsn")
