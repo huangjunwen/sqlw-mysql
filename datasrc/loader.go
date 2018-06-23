@@ -26,6 +26,7 @@ type Loader struct {
 	conn *sql.Conn
 }
 
+// NewLoader creates a loader.
 func NewLoader(dsn string) (*Loader, error) {
 
 	connPool, err := sql.Open("mysql", dsn)
