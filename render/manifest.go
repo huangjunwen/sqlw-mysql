@@ -9,6 +9,7 @@ import (
 // Manifest contains file names.
 type Manifest struct {
 	ScanTypeMap string `json:"scan_type_map"` // required
+	Headnote    string `json:"headnote"`      // optional
 	Templates   struct {
 		Table     string   `json:"table"`      // required
 		TableTest string   `json:"table_test"` // optional

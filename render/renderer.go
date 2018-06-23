@@ -30,6 +30,7 @@ type Renderer struct {
 	db          *infos.DBInfo
 	manifest    *Manifest
 	scanTypeMap ScanTypeMap
+	headnote    string
 	templates   map[string]*template.Template // name -> template
 }
 
@@ -155,9 +156,10 @@ func (r *Renderer) Run() error {
 	r.db = nil
 	r.manifest = nil
 	r.scanTypeMap = nil
+	r.headnote = ""
 	r.templates = make(map[string]*template.Template)
 
-	// Create Loader.
+	// Create loader.
 	var err error
 	r.loader, err = datasrc.NewLoader(r.dsn)
 	if err != nil {
@@ -165,13 +167,13 @@ func (r *Renderer) Run() error {
 	}
 	defer r.loader.Close()
 
-	// Load DBInfo.
+	// Load db.
 	r.db, err = infos.NewDBInfo(r.loader)
 	if err != nil {
 		return err
 	}
 
-	// Load Manifest.
+	// Load manifest.
 	manifestFile, err := r.tmplDir.Open("manifest.json")
 	if err != nil {
 		return err
@@ -183,7 +185,7 @@ func (r *Renderer) Run() error {
 		return err
 	}
 
-	// Load ScanTypeMap.
+	// Load scanTypeMap.
 	scanTypeMapFile, err := r.tmplDir.Open(r.manifest.ScanTypeMap)
 	if err != nil {
 		return err
@@ -192,6 +194,25 @@ func (r *Renderer) Run() error {
 	r.scanTypeMap, err = NewScanTypeMap(scanTypeMapFile)
 	if err != nil {
 		return err
+	}
+
+	// Load headnote.
+	if r.manifest.Headnote != "" {
+		headnoteFile, err := r.tmplDir.Open(r.manifest.Headnote)
+		if err != nil {
+			return err
+		}
+		defer headnoteFile.Close()
+
+		headnoteContent, err := ioutil.ReadAll(headnoteFile)
+		if err != nil {
+			return err
+		}
+
+		r.headnote = string(headnoteContent)
+		if r.headnote != "" {
+			r.headnote += "\n" // Add a newline.
+		}
 	}
 
 	// Start renderring.
@@ -356,6 +377,12 @@ func (r *Renderer) render(tmplName, fileName string, data interface{}) error {
 		return err
 	}
 	defer file.Close()
+
+	// Output headnote.
+	_, err = file.WriteString(r.headnote)
+	if err != nil {
+		return err
+	}
 
 	// Render.
 	buf := &bytes.Buffer{}
