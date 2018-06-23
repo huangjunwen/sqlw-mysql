@@ -34,13 +34,13 @@ var (
 
 func main() {
 	// Parse flags.
-	flag.StringVar(&dsn, "dsn", "root:123456@tcp(localhost:3306)/dev?parseTime=true", "Data source name. ")
-	flag.StringVar(&tmplDir, "tmpl", "", "Builtin/Custom templates directory.")
-	flag.StringVar(&stmtDir, "stmt", "", "Statement xmls directory.")
-	flag.StringVar(&outputDir, "out", "models", "Output directory for generated code.")
-	flag.StringVar(&outputPkg, "pkg", "", "Alternative package name of the generated code.")
-	flag.Var(&whitelist, "whitelist", "Comma seperated table names to render.")
-	flag.Var(&blacklist, "blacklist", "Comma seperated table names not to render.")
+	flag.StringVar(&dsn, "dsn", "", "(Required) Data source name. e.g. \"user:passwd@tcp(host:port)/db?parseTime=true\"")
+	flag.StringVar(&tmplDir, "tmpl", "", "(Optional) Custom templates directory.")
+	flag.StringVar(&stmtDir, "stmt", "", "(Optional) Statement xmls directory.")
+	flag.StringVar(&outputDir, "out", "models", "(Optional) Output directory for generated code.")
+	flag.StringVar(&outputPkg, "pkg", "", "(Optional) Alternative package name of the generated code.")
+	flag.Var(&whitelist, "whitelist", "(Optional) Comma seperated table names to render.")
+	flag.Var(&blacklist, "blacklist", "(Optional) Comma seperated table names not to render.")
 	flag.Parse()
 	if dsn == "" {
 		log.Fatalf("Missing -dsn")
