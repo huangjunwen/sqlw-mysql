@@ -64,6 +64,16 @@ type {{ $resultName }} struct {
       {{ end -}}
 }
 
+      {{ if and (not $flagReturnOne) $flagHasWildcard }}
+
+// {{ $resultName }}Slice is slice of {{ $resultName }}.
+type {{ $resultName }}Slice []*{{ $resultName }}
+
+// nx{{ $resultName }}Slices is slice of {{ $resultName }}Slice.
+type nx{{ $resultName }}Slices []{{ $resultName }}Slice
+
+      {{ end }} {{/*{{ if and (not $flagReturnOne) $flagHasWildcard }}*/}}
+
 func (result *{{ $resultName }}) nxPreScan(dest *[]interface{}) {
       {{ range $i, $col := $stmt.QueryResultCols -}}
         {{ $wc := $wcs.ResultCol2Wildcard $i -}}
@@ -89,12 +99,6 @@ func (result *{{ $resultName }}) nxPostScan() error {
 }
 
       {{ if and (not $flagReturnOne) $flagHasWildcard }}
-
-// {{ $resultName }}Slice is slice of {{ $resultName }}.
-type {{ $resultName }}Slice []*{{ $resultName }}
-
-// nx{{ $resultName }}Slices is slice of {{ $resultName }}Slice.
-type nx{{ $resultName }}Slices []{{ $resultName }}Slice
 
 func (slice *{{ $resultName }}Slice) nxLen() int {
   return len(*slice)
