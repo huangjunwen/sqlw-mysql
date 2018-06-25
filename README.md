@@ -7,6 +7,12 @@
 - [Install](#install)
 - [Design/Goals/Features](#design)
 - [Quickstart](#quickstart)
+- [Statement XML](#statement_xml)
+  - [Directives](#directives)
+- [Code template](#code_template)
+  - [Default template](#default_template)
+- [Motivation](#motivation)
+- [Licence](#licence)
 
 <a name="install" />
 
@@ -20,9 +26,9 @@ $ go get -u github.com/huangjunwen/sqlw-mysql
 
 ## Design/Goals/Features
 
-- Not an `ORM`.
+- Not an `ORM`, but provide similar features.
 - Database first, `sqlw-mysql` generate wrapper code for your database tables.
-- Use XML as DSL to describe queries, `sqlw-mysql` generate wrapper code for them.
+- Use XML as DSL to describe query statements, `sqlw-mysql` generate wrapper code for them.
 - Should be work for all kinds of queries, from simple ones to complex ones.
 - Genreated code should be simple, easy to understand, but also convenient enough to use.
 - Highly customizable code template.
@@ -263,3 +269,41 @@ for i, superior := range superiors {
 
 In fact, `sqlw-mysql` doesn't care about what kind of relationships between result fields. It just generate helper methods such as `GroupByXXX`/`DistinctXXX` to process result set.
 
+
+<a name="statement_xml" />
+
+## Statement XML
+
+Statement XML is the DSL to describe your queries. 
+
+_TODO_
+
+<a name="directives" />
+
+### Directives
+
+_TODO_
+
+<a name="code_template" />
+
+## Code template
+
+_TODO_
+
+<a name="default_template" />
+
+### Default template
+
+_TODO_
+
+<a name="motivation" />
+
+## Motivation
+
+_TODO_
+
+## Licence
+
+MIT
+
+Author: huangjunwen (kassarar@gmail.com)
