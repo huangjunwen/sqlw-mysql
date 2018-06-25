@@ -38,7 +38,9 @@ $ go get -u github.com/huangjunwen/sqlw-mysql
 
 ## Quickstart
 
-Let's start with a small example. Suppose you have a database with these tables:
+Let's start with a small example.
+
+Suppose you have a database with two tables: `user` and `employee`; An `employee` must be a `user`, but a `user` need not to be an `employee`; Each `employee` must have a superior except those top dogs.
 
 ``` sql
 -- Database: `db`
@@ -66,9 +68,8 @@ CREATE TABLE `employee` (
 
 ```
 
-_Some explanation: An `employee` must be a `user`, but a `user` need not to be an `employee`; Each `employee` must have a superior except those top dogs._
 
-Now run `sqlw-mysql` against the database:
+Now run `sqlw-mysql` against the database. You will see a `models` directory is created with several source files generated:
 
 ``` bash
 $ sqlw-mysql -dsn "user:passwd@tcp(host:port)/db?parseTime=true"
@@ -76,8 +77,6 @@ $ ls ./models
 ... table_user.go ... table_employee.go
 
 ```
-
-You will see a `models` directory is created with several source files generated:
 
 Especially, a `table_<table name>.go` is generated for each table containing structs/methods for some common single table operations:
 
