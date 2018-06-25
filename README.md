@@ -32,7 +32,7 @@ $ go get -u github.com/huangjunwen/sqlw-mysql
 - Should be work for all kinds of queries, from simple ones to complex ones.
 - Genreated code should be simple, easy to understand, but also convenient enough to use.
 - Highly customizable code template.
-- Extendable DSL.
+- Extensible DSL.
 
 <a name="quickstart" />
 
@@ -111,7 +111,9 @@ But eventually, you will need more complex quries. For example if you want to qu
 
 ```
 
-A statement XML contains SQL statements with special directives embeded in. Here you can see two `<wc table="table_name">` directives, which are roughly equal to expanded `table_name.*`.
+A statement XML contains SQL statement with special directives embeded in. Here you can see two `<wc table="table_name">` directives, which are roughly equal to expanded `table_name.*`. 
+
+_See [Statement XML](#statement_xml) for detail._
 
 Now run `sqlw-mysql` again with the statement XML directory:
 
@@ -140,19 +142,6 @@ type AllUserEmployeeInfoResult struct {
 type AllUserEmployeeInfoResultSlice []*AllUserEmployeeInfoResult
 
 // ...
-
-/*
-AllUserEmployeeInfo is created from:
-
-  <stmt name="AllUserEmployeeInfo">
-    SELECT
-      <wc table="user"/>,
-      CAST(DATEDIFF(NOW(), birthday)/365 AS UNSIGNED) AS age,
-      <wc table="employee" as="empl"/>
-    FROM
-      user LEFT JOIN employee AS empl ON user.id=empl.user_id
-  </stmt>
-*/
 func AllUserEmployeeInfo(ctx context.Context, q Queryer) (AllUserEmployeeInfoResultSlice, error) {
   // ...
 }
@@ -210,6 +199,8 @@ Brief explanation about new directives:
 - `<vars>` specifies arbitary variables that the template can use. `in_query="1"` tells the template that the function use `IN` operator.
 - `<repl>` can replace arbitary statement text.
 
+_See [Directives](#directives) for detail._
+
 After re-running the command, the following code is generated:
 
 ``` go
@@ -227,22 +218,6 @@ type EmployeeInfoResult struct {
 type EmployeeInfoResultSlice []*EmployeeInfoResult
 
 // ...
-
-/*
-EmployeeInfo is created from:
-
-  <stmt name="EmployeeInfo">
-    <arg name="id" type="...int"/>
-    <vars in_query="1"/>
-    SELECT
-      <wc table="employee" as="superior"/>,
-      <wc table="employee" as="subordinate"/>
-    FROM
-      employee AS superior LEFT JOIN employee AS subordinate ON subordinate.superior_id=superior.id
-    WHERE
-      superior.id IN (<repl with=":id">1</repl>)
-    </stmt>
-*/
 func EmployeeInfo(ctx context.Context, q Queryer, id ...int) (EmployeeInfoResultSlice, error) {
   // ...
 }
@@ -274,13 +249,25 @@ In fact, `sqlw-mysql` doesn't care about what kind of relationships between resu
 
 ## Statement XML
 
-Statement XML is the DSL to describe your queries. 
+`sqlw-mysql` use XML as DSL to describe quries, since it's suitable for mixed content: raw SQL query and special directives. 
 
-_TODO_
+The simplest one is a `<stmt>` element with `name` attribute, without any directive, like this:
+
+``` xml
+<stmt name="One">
+  SELECT 1
+</stmt>
+```
+
+But this is not very useful, sometimes we want to add meta data to it, sometimes we want to reduce verbosity ...
+
+That's why we need directives:
 
 <a name="directives" />
 
 ### Directives
+
+Directive represents a fragment of SQL query, usually declared by an XML element.
 
 _TODO_
 
