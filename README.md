@@ -1,10 +1,11 @@
 # SQL wrapper code generator for MySQL [![Go Report Card](https://goreportcard.com/badge/github.com/huangjunwen/sqlw-mysql)](https://goreportcard.com/report/github.com/huangjunwen/sqlw-mysql)
 
-`sqlw-mysql` is a CLI tool to generate go wrapper code for your MySQL table schemas and queries.
+`sqlw-mysql` is a CLI tool to generate go wrapper code for your MySQL database and queries.
 
 ## Table of Contents
 
 - [Install](#install)
+- [Design/Goals/Features](#design)
 - [Quickstart](#quickstart)
 
 <a name="install" />
@@ -14,6 +15,18 @@
 ``` bash
 $ go get -u github.com/huangjunwen/sqlw-mysql
 ```
+
+<a name="design" />
+
+## Design/Goals/Features
+
+- Not an `ORM`.
+- Database first, `sqlw-mysql` generate wrapper code for your database tables.
+- Use XML as DSL to describe queries, `sqlw-mysql` generate wrapper code for them.
+- Should be work for all kinds of queries, from simple ones to complex ones.
+- Genreated code should be simple, easy to understand, but also convenient enough to use.
+- Highly customizable code template.
+- Extendable DSL.
 
 <a name="quickstart" />
 
@@ -76,7 +89,7 @@ type User struct {
 // ...
 ```
 
-But eventually, you will need more complex quries. For example you want to query all `user` and its associated `employee` (e.g. `one2one` relationship). Then you can write a statement XML like this:
+But eventually, you will need more complex quries. For example if you want to query all `user` and its associated `employee` (e.g. `one2one` relationship), then you can write a statement XML like this:
 
 ``` xml
 <!-- ./stmts/user.xml -->
@@ -94,7 +107,7 @@ But eventually, you will need more complex quries. For example you want to query
 
 A statement XML contains SQL statements with special directives embeded in. Here you can see two `<wc table="table_name">` directives, which are roughly equal to expanded `table_name.*`.
 
-Now run `sqlw-mysql` again specifying statement XML directory:
+Now run `sqlw-mysql` again with the statement XML directory:
 
 ``` bash
 $ sqlw-mysql -dsn "user:passwd@tcp(host:port)/db?parseTime=true" -stmt ./stmts
@@ -191,7 +204,7 @@ Brief explanation about new directives:
 - `<vars>` specifies arbitary variables that the template can use. `in_query="1"` tells the template that the function use `IN` operator.
 - `<repl>` can replace arbitary statement text.
 
-After re-run the command, the following code is generated:
+After re-running the command, the following code is generated:
 
 ``` go
 // ./models/stmt_user.go
@@ -248,4 +261,5 @@ for i, superior := range superiors {
 }
 ```
 
-TODO ...
+In fact, `sqlw-mysql` doesn't care about what kind of relationships between result fields. It just generate helper methods such as `GroupByXXX`/`DistinctXXX` to process result set.
+
