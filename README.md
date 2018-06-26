@@ -9,8 +9,10 @@
 - [Quickstart](#quickstart)
 - [Statement XML](#statement-xml)
   - [Directives](#directives)
+    - [How wildcard directive works](#how-wildcard-directive-works)
 - [Code template](#code-template)
   - [Default template](#default-template)
+- [Command line options](#command-line-options)
 - [Motivation](#motivation)
 - [Licence](#licence)
 
@@ -26,7 +28,7 @@ $ go get -u github.com/huangjunwen/sqlw-mysql
 - Database first, `sqlw-mysql` generate wrapper code for your database tables.
 - Use XML as DSL to describe query statements, `sqlw-mysql` generate wrapper code for them.
 - Should be work for all kinds of queries, from simple ones to complex ones.
-- Genreated code should be simple, easy to understand, but also convenient enough to use.
+- Genreated code should be simple, easy to understand, and convenient enough to use.
 - Highly customizable code template.
 - Extensible DSL.
 
@@ -141,7 +143,7 @@ func AllUserEmployeeInfo(ctx context.Context, q Queryer) (AllUserEmployeeInfoRes
 
 ```
 
-Notice that `User` and `Empl` fields in result struct are generated from those `<wc>` directives. `sqlw-mysql` is smart enough to figure out their correct positions.
+Notice that `User` and `Empl` fields in result struct are generated from those `<wc>` directives. `sqlw-mysql` is smart enough to figure out their correct positions. _See [here](#how-wildcard-directive-works) for detail._
 
 Now you can use the newly created function to iterate through all `user` and `employee`:
 
@@ -235,12 +237,12 @@ for i, superior := range superiors {
 }
 ```
 
-In fact, `sqlw-mysql` doesn't care about what kind of relationships between result fields. It just generate helper methods such as `GroupByXXX`/`DistinctXXX` to process result set.
+In fact, `sqlw-mysql` doesn't care about what kind of relationships between result fields. It just generate helper methods such as `GroupByXXX`/`DistinctXXX` for these fields, thus it works for all kinds of relationships.
 
 
 ## Statement XML
 
-`sqlw-mysql` use XML as DSL to describe quries, since it's suitable for mixed content: raw SQL query and special directives. 
+`sqlw-mysql` use XML as DSL to describe quries, since XML is suitable for mixed content: raw SQL query and special directives. 
 
 The simplest one is a `<stmt>` element with `name` attribute, without any directive, like this:
 
@@ -256,9 +258,50 @@ That's why we need directives:
 
 ### Directives
 
-Directive represents a fragment of SQL query, usually declared by an XML element.
+Directive represents a fragment of SQL query, usually declared by an XML element. `sqlw-mysql` processes directives in several passes:
 
-_TODO_
+- The first pass all directives should generate fragments that form a valid SQL statement. This SQL statement is then used to determine statement type, to obtain result column information by querying against the database if it's a SELECT, e.g. `SELECT * FROM user WHERE id=1`
+- The second pass all directives should generate fragments that form a text statement for template renderring. It's no need to be a valid SQL statement, it's up to the template to decide how to use this text, e.g. `SELECT * FROM user WHERE id=:id`
+- Some directives may run extra pass.
+
+Here is a list of current builtin directives:
+
+| Directive | Example | First pass result | Second pass result | Extra pass | Note |
+|-----------|---------|-------------------|--------------------|------------|------|
+| `<arg>` | `<arg name="id" type="int" />` | `""` | `""` | | Declare a wrapper function argument. It always returns empty string |
+| `<vars>` | `<vars flag1="true" flag2="false" />` | `""` | `""` | | Declare arbitary key/value pairs (XML attributes) for template to use. It always returns empty string |
+| `<repl>` | `<repl with=":id">1</repl>` | `"1"` | `":id"` | | It returns the inner text for the first pass and returns the value in `with` attribute for the second pass |
+| `<wc>` | `<wc table="employee" as="empl" />` | ```"`empl`.`id`, ..., `empl`.`superior_id`"``` | ```"`empl`.`id`, ..., `empl`.`superior_id`"``` | Run an extra pass to determine fields positions, see [here](#how-wildcard-directive-works) for detail | Always returns an expanded column list of the table |
+
+#### How wildcard directive works
+
+In the extra pass of `<wc>` directives, special marker columns are added before and after each `<wc>` directive, for example:
+
+``` xml
+  SELECT NOW(), <wc table="user" />, NOW() FROM user
+```
+
+will be expanded to something like:
+
+```
+  SELECT NOW(), 1 AS wc456958346a616564_0_s, `user`.`id`, ..., `user`.`birthday`, 1 AS wc456958346a616564_0_e, NOW() FROM user
+```
+
+By finding these marker column name in the result columns, `sqlw-mysql` can determine their positions.
+
+This even works for subquery:
+
+``` xml
+  SELECT * FROM (SELECT <wc table="user" /> FROM user) AS u
+```
+
+And if you only selects a single column (or a few columns) like:
+
+``` xml
+  SELECT birthday FROM (SELECT <wc table="user" /> FROM user) AS u
+```
+
+Then the wildcard directive is ignored since you're not selecting all columns of the table.
 
 ## Code template
 
@@ -268,9 +311,41 @@ _TODO_
 
 _TODO_
 
+## Command line options
+
+``` bash
+$ sqlw-mysql -h
+Usage of sqlw-mysql:
+  -blacklist value
+    	(Optional) Comma separated table names not to render.
+  -dsn string
+    	(Required) Data source name. e.g. "user:passwd@tcp(host:port)/db?parseTime=true"
+  -out string
+    	(Optional) Output directory for generated code. (default "models")
+  -pkg string
+    	(Optional) Alternative package name of the generated code.
+  -stmt string
+    	(Optional) Statement xmls directory.
+  -tmpl string
+    	(Optional) Custom templates directory.
+  -whitelist value
+    	(Optional) Comma separated table names to render.
+
+```
+
 ## Motivation
 
-_TODO_
+This tool is inspired by [xo](https://github.com/xo/xo) and influenced by tools like [sqlboiler](https://github.com/volatiletech/sqlboiler) since I'm a big fan of code generation and database first approach. However, some issues arised when using them.
+
+For xo:
+- The support for MySQL seems not very well
+  - [Issue #123](https://github.com/xo/xo/issues/123)
+  - Can't handle queries like: `SELECT user.*, employee.* FROM user LEFT JOIN employee ON employee.user_id=user.id;` since it use `CREATE VIEW ...` to obtain result column information but `CREATE VIEW` does not permit duplicate column names: both `user` and `employee` have `id`. As a result, you must hand write aliases for all the columns if you want to select them all.
+- The DSL is quite limited, you really need to hand write every bit of the SQL.
+
+For sqlboiler:
+- It seems that outer join is not supported yet? [Issue #153](https://github.com/volatiletech/sqlboiler/issues/153)
+- The genreated code quite large.
 
 ## Licence
 
