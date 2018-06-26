@@ -5,24 +5,20 @@
 ## Table of Contents
 
 - [Install](#install)
-- [Design/Goals/Features](#design)
+- [Design/Goals/Features](#designgoalsfeatures)
 - [Quickstart](#quickstart)
-- [Statement XML](#statement_xml)
+- [Statement XML](#statement-xml)
   - [Directives](#directives)
-- [Code template](#code_template)
-  - [Default template](#default_template)
+- [Code template](#code-template)
+  - [Default template](#default-template)
 - [Motivation](#motivation)
 - [Licence](#licence)
-
-<a name="install" />
 
 ## Install
 
 ``` bash
 $ go get -u github.com/huangjunwen/sqlw-mysql
 ```
-
-<a name="design" />
 
 ## Design/Goals/Features
 
@@ -33,8 +29,6 @@ $ go get -u github.com/huangjunwen/sqlw-mysql
 - Genreated code should be simple, easy to understand, but also convenient enough to use.
 - Highly customizable code template.
 - Extensible DSL.
-
-<a name="quickstart" />
 
 ## Quickstart
 
@@ -225,7 +219,7 @@ func EmployeeInfo(ctx context.Context, q Queryer, id ...int) (EmployeeInfoResult
 Then, you can iterate the result like:
 
 ``` go
-slice, err := EmployeeInfo(ctx, db)
+slice, err := EmployeeInfo(ctx, db, ids...)
 if err != nil {
   panic(err)
 }
@@ -244,8 +238,6 @@ for i, superior := range superiors {
 In fact, `sqlw-mysql` doesn't care about what kind of relationships between result fields. It just generate helper methods such as `GroupByXXX`/`DistinctXXX` to process result set.
 
 
-<a name="statement_xml" />
-
 ## Statement XML
 
 `sqlw-mysql` use XML as DSL to describe quries, since it's suitable for mixed content: raw SQL query and special directives. 
@@ -262,27 +254,19 @@ But this is not very useful, sometimes we want to add meta data to it, sometimes
 
 That's why we need directives:
 
-<a name="directives" />
-
 ### Directives
 
 Directive represents a fragment of SQL query, usually declared by an XML element.
 
 _TODO_
 
-<a name="code_template" />
-
 ## Code template
 
 _TODO_
 
-<a name="default_template" />
-
 ### Default template
 
 _TODO_
-
-<a name="motivation" />
 
 ## Motivation
 
