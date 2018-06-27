@@ -50,7 +50,7 @@ func WithTstMySQLServer(do func(context.Context) error) func(context.Context) er
 
 		// Start MySQL server container.
 		log.Printf("Starting MySQL server, may take a while to pull docker image if not exists\n")
-		resource, err := pool.Run("mysql", ver, []string{"MYSQL_ROOT_PASSWORD=123456"})
+		resource, err := pool.Run("mysql", ver, []string{"MYSQL_ROOT_PASSWORD=123456", "MYSQL_DATABASE=dev"})
 		if err != nil {
 			return err
 		}
@@ -60,7 +60,7 @@ func WithTstMySQLServer(do func(context.Context) error) func(context.Context) er
 		}()
 
 		// Get dsn.
-		dsn := fmt.Sprintf("root:123456@(localhost:%s)/mysql", resource.GetPort("3306/tcp"))
+		dsn := fmt.Sprintf("root:123456@tcp(localhost:%s)/dev?parseTime=true&multiStatements=true", resource.GetPort("3306/tcp"))
 
 		// Wait server up.
 		mysql.SetLogger(noopLogger{})
