@@ -1,0 +1,48 @@
+<stmt name="AllUserEmployees">
+  SELECT
+    <wc table="user" />,
+    CAST(DATEDIFF(NOW(), birthday)/365 AS UNSIGNED) AS age,
+    <wc table="employee" as="empl" />
+  FROM
+    user LEFT JOIN employee AS empl ON user.id=empl.user_id
+</stmt>
+
+
+<stmt name="SubordinatesBySuperiors">
+  <a name="id" type="...int" />
+  <v in_query="1" />
+  SELECT
+    <wc table="employee" as="superior" />,
+    <wc table="employee" as="subordinate" />
+  FROM
+    employee AS superior LEFT JOIN employee AS subordinate ON subordinate.superior_id=superior.id
+  WHERE
+    superior.id IN (<r by=":id">1</r>)
+</stmt>
+
+
+<stmt name="UsersByCond">
+  <v use_template="1" />
+  <a name="id" type="int" />
+  <a name="name" type="string" />
+  <a name="birthday" type="time.Time" />
+  <a name="limit" type="int" />
+  SELECT
+    <wc table="user" />
+  FROM
+    user
+  WHERE
+    <t>{{ if ne .id 0 }}</t>
+      id=<r by=":id">1</r> AND
+    <t>{{ end }}</t>
+
+    <t>{{ if ne (len .name) 0 }}</t>
+      name=<r by=":name">"hjw"</r> AND
+    <t>{{ end }}</t>
+
+    <t>{{ if not .birthday.IsZero }}</t>
+      birthday=<r by=":birthday">NOW()</r> AND
+    <t>{{ end }}</t>
+    1
+  LIMIT <r by=":limit">10</r>
+</stmt>
