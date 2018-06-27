@@ -90,5 +90,5 @@ func (d *varsDirective) ExtraProcess() error {
 func init() {
 	infos.RegistDirectiveFactory(func() infos.Directive {
 		return &varsDirective{}
-	}, "vars")
+	}, "vars", "v")
 }

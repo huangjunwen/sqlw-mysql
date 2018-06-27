@@ -19,8 +19,9 @@ func (d *textDirective) Initialize(loader *datasrc.Loader, db *infos.DBInfo, stm
 }
 
 func (d *textDirective) Expand() ([]etree.Token, error) {
+	// <text>xxxxxx</text> -> <repl by="xxxxxx" />
 	elem := etree.NewElement("repl")
-	elem.CreateAttr("with", string(*d))
+	elem.CreateAttr("by", string(*d))
 	return []etree.Token{elem}, nil
 }
 
@@ -28,5 +29,5 @@ func init() {
 	infos.RegistDirectiveFactory(func() infos.Directive {
 		d := textDirective("")
 		return &d
-	}, "text")
+	}, "text", "t")
 }

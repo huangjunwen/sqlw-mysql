@@ -107,5 +107,5 @@ func (d *argDirective) ExtraProcess() error {
 func init() {
 	infos.RegistDirectiveFactory(func() infos.Directive {
 		return &argDirective{}
-	}, "arg")
+	}, "arg", "a")
 }
