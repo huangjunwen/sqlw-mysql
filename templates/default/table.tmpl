@@ -52,7 +52,7 @@ type {{ $uname }}Slice []*{{ $uname }}
 func (tr *{{ $uname }}) nxPreScan(dest *[]interface{}) {
   *dest = append(*dest,
   {{ range $col := .Table.Columns -}}
-    tr.{{ $col.UName }},
+    &tr.{{ $col.UName }},
   {{ end -}}
   )
 }
