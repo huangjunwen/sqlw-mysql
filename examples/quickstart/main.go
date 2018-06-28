@@ -20,18 +20,50 @@ func main() {
 	}
 	defer db.Close()
 
-	// Open a single connection.
-	conn, err := db.Conn(ctx)
+	// Open a tx.
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer conn.Close()
+	defer tx.Rollback() // Always rollback.
+
+	{
+		log.Printf("\n")
+		log.Printf(">>>> Single table operations\n")
+
+		// Insert.
+		u := &models.User{}
+		u.Name = "Yannis"
+		u.Female.SetValid(true)
+
+		if err := u.Insert(ctx, tx); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("%#v\n", u)
+
+		// Update.
+		newU := u.Copy()
+		newU.Birthday.SetValid(time.Now())
+		if err := u.Update(ctx, tx, newU); err != nil {
+			log.Fatal(err)
+		}
+		if err := u.Reload(ctx, tx); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("%#v\n", u)
+
+		// Delete.
+		if err := u.Delete(ctx, tx); err != nil {
+			log.Fatal(err)
+		}
+
+	}
 
 	{
 		log.Printf("\n")
 		log.Printf(">>>> Iter all user and its associated employee\n")
 
-		slice, err := models.AllUserEmployees(ctx, conn)
+		slice, err := models.AllUserEmployees(ctx, tx)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -52,7 +84,7 @@ func main() {
 		log.Printf("\n")
 		log.Printf(">>>> Iter subordinate\n")
 
-		slice, err := models.SubordinatesBySuperiors(ctx, conn, 1, 2, 3, 4, 5, 6, 7)
+		slice, err := models.SubordinatesBySuperiors(ctx, tx, 1, 2, 3, 4, 5, 6, 7)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -79,7 +111,7 @@ func main() {
 		log.Printf(">>>> Query user by different condition\n")
 
 		{
-			slice, err := models.UsersByCond(ctx, conn, 0, "Zombie", time.Time{}, 1)
+			slice, err := models.UsersByCond(ctx, tx, 0, "Zombie", time.Time{}, 1)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -89,7 +121,7 @@ func main() {
 		}
 
 		{
-			slice, err := models.UsersByCond(ctx, conn, 0, "", time.Date(1992, time.Month(2), 2, 0, 0, 0, 0, time.UTC), 10)
+			slice, err := models.UsersByCond(ctx, tx, 0, "", time.Date(1992, time.Month(2), 2, 0, 0, 0, 0, time.UTC), 10)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -99,7 +131,17 @@ func main() {
 		}
 
 		{
-			slice, err := models.UsersByCond(ctx, conn, 1, "", time.Date(1992, time.Month(2), 2, 0, 0, 0, 0, time.UTC), 10)
+			slice, err := models.UsersByCond(ctx, tx, 1, "", time.Date(1992, time.Month(2), 2, 0, 0, 0, 0, time.UTC), 10)
+			if err != nil {
+				log.Fatal(err)
+			}
+			for _, result := range slice {
+				log.Printf("id: %d, name: %+q, femal: %v, birthday: %v", result.Id, result.Name, result.Female, result.Birthday)
+			}
+		}
+
+		{
+			slice, err := models.UsersByCond(ctx, tx, 0, "", time.Time{}, 10)
 			if err != nil {
 				log.Fatal(err)
 			}
