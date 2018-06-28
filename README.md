@@ -30,17 +30,15 @@ $ go get -u github.com/huangjunwen/sqlw-mysql
 - Should be work for all kinds of queries, from simple ones to complex ones.
 - Genreated code should be simple, easy to understand, and convenient enough to use.
 - Highly customizable code template.
-- Extensible DSL.
+- Extensible DSL (through directives).
 
 ## Quickstart
 
-Let's start with a small example.
+Let's start with a small example. (See [here](https://github.com/huangjunwen/sqlw-mysql/tree/master/examples/quickstart) for complete source code)
 
 Suppose you have a database with two tables: `user` and `employee`; An `employee` must be a `user`, but a `user` need not to be an `employee`; Each `employee` must have a superior except those top dogs.
 
 ``` sql
--- Database: `db`
-
 CREATE TABLE `user` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(64) NOT NULL,
@@ -61,7 +59,6 @@ CREATE TABLE `employee` (
   CONSTRAINT `fk_superior` FOREIGN KEY (`superior_id`) REFERENCES `employee` (`id`),
   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 );
-
 ```
 
 
@@ -87,7 +84,13 @@ type User struct {
   Birthday null.Time `json:"birthday" db:"birthday"`
 }
 
-// ...
+func (tr *User) Insert(ctx context.Context, e Execer) error {
+  // ...
+}
+
+func (tr *User) Reload(ctx context.Context, q Queryer) error {
+  // ...
+}
 ```
 
 But eventually, you will need more complex quries. For example if you want to query all `user` and its associated `employee` (e.g. `one2one` relationship), then you can write a statement XML like this:
@@ -95,15 +98,14 @@ But eventually, you will need more complex quries. For example if you want to qu
 ``` xml
 <!-- ./stmts/user.xml -->
 
-<stmt name="AllUserEmployeeInfo">
-  SELECT 
+<stmt name="AllUserEmployees">
+  SELECT
     <wc table="user" />,
     CAST(DATEDIFF(NOW(), birthday)/365 AS UNSIGNED) AS age,
-    <wc table="employee" as="empl" />     
+    <wc table="employee" as="empl" />
   FROM
     user LEFT JOIN employee AS empl ON user.id=empl.user_id
 </stmt>
-
 ```
 
 A statement XML contains SQL statement with special directives embeded in. Here you can see two `<wc table="table_name">` directives, which are roughly equal to expanded `table_name.*`. 
@@ -124,8 +126,8 @@ A new file `stmt_user.go` is generated from `user.xml`:
 ``` go
 // ./models/stmt_user.go
 
-// AllUserEmployeeInfoResult is the result of AllUserEmployeeInfo.
-type AllUserEmployeeInfoResult struct {
+// AllUserEmployeesResult is the result of AllUserEmployees.
+type AllUserEmployeesResult struct {
   User       *User
   Age        null.Uint64
   Empl       *Employee
@@ -133,11 +135,11 @@ type AllUserEmployeeInfoResult struct {
   nxNullEmpl nxNullEmployee
 }
 
-// AllUserEmployeeInfoResultSlice is slice of AllUserEmployeeInfoResult.
-type AllUserEmployeeInfoResultSlice []*AllUserEmployeeInfoResult
+// AllUserEmployeesResultSlice is slice of AllUserEmployeesResult.
+type AllUserEmployeesResultSlice []*AllUserEmployeesResult
 
 // ...
-func AllUserEmployeeInfo(ctx context.Context, q Queryer) (AllUserEmployeeInfoResultSlice, error) {
+func AllUserEmployees(ctx context.Context, q Queryer) (AllUserEmployeesResultSlice, error) {
   // ...
 }
 
@@ -148,26 +150,21 @@ Notice that `User` and `Empl` fields in result struct are generated from those `
 Now you can use the newly created function to iterate through all `user` and `employee`:
 
 ``` go
-slice, err := AllUserEmployeeInfo(ctx, db)
+slice, err := models.AllUserEmployees(ctx, tx)
 if err != nil {
-  panic(err)
+  log.Fatal(err)
 }
 
 for _, result := range slice {
   user := result.User
   empl := result.Empl
 
-  if !empl.Valid() {
-    // The user is not an employee.
-    // ...
+  if empl.Valid() {
+    log.Printf("User %+q (age %d) is an employee, sn: %+q\n", user.Name, result.Age.Uint64, empl.EmployeeSn)
   } else {
-    // The user is an employee.
-    // ...
+    log.Printf("User %+q (age %d) is not an employee\n", user.Name, result.Age.Uint64)
   }
-
-  // ...
 }
-
 ```
 
 Another example, if you want to find subordinates of some employees (e.g. `one2many` relationship):
@@ -175,24 +172,23 @@ Another example, if you want to find subordinates of some employees (e.g. `one2m
 ``` xml
 <!-- ./stmts/user.xml -->
 
-<stmt name="EmployeeInfo">
-  <arg name="id" type="...int" />
-  <vars in_query="1" />
-  SELECT 
+<stmt name="SubordinatesBySuperiors">
+  <a name="id" type="...int" />
+  <v in_query="1" />
+  SELECT
     <wc table="employee" as="superior" />,
     <wc table="employee" as="subordinate" />
   FROM
     employee AS superior LEFT JOIN employee AS subordinate ON subordinate.superior_id=superior.id
   WHERE
-    superior.id IN (<repl with=":id">1</repl>)
+    superior.id IN (<r by=":id">1</r>)
 </stmt>
-
 ```
 
 Brief explanation about new directives:
-- `<arg>` specifies an argument of the generated function.
-- `<vars>` specifies arbitary variables that the template can use. `in_query="1"` tells the template that the function use `IN` operator.
-- `<repl>` can replace arbitary statement text.
+- `<a>` specifies an argument of the generated function.
+- `<v>` specifies arbitary variables that the template can use. `in_query="1"` tells the template that the SQL use `IN` operator.
+- `<r>` can replace arbitary statement text.
 
 _See [Directives](#directives) for detail._
 
@@ -201,19 +197,19 @@ After re-running the command, the following code is generated:
 ``` go
 // ./models/stmt_user.go
 
-// EmployeeInfoResult is the result of EmployeeInfo.
-type EmployeeInfoResult struct {
+// SubordinatesBySuperiorsResult is the result of SubordinatesBySuperiors.
+type SubordinatesBySuperiorsResult struct {
   Superior          *Employee
   Subordinate       *Employee
   nxNullSuperior    nxNullEmployee
   nxNullSubordinate nxNullEmployee
 }
 
-// EmployeeInfoResultSlice is slice of EmployeeInfoResult.
-type EmployeeInfoResultSlice []*EmployeeInfoResult
+// SubordinatesBySuperiorsResultSlice is slice of SubordinatesBySuperiorsResult.
+type SubordinatesBySuperiorsResultSlice []*SubordinatesBySuperiorsResult
 
 // ...
-func EmployeeInfo(ctx context.Context, q Queryer, id ...int) (EmployeeInfoResultSlice, error) {
+func SubordinatesBySuperiors(ctx context.Context, q Queryer, id ...int) (SubordinatesBySuperiorsResultSlice, error) {
   // ...
 }
 ```
@@ -221,19 +217,23 @@ func EmployeeInfo(ctx context.Context, q Queryer, id ...int) (EmployeeInfoResult
 Then, you can iterate the result like:
 
 ``` go
-slice, err := EmployeeInfo(ctx, db, ids...)
+slice, err := models.SubordinatesBySuperiors(ctx, tx, 1, 2, 3, 4, 5, 6, 7)
 if err != nil {
-  panic(err)
+  log.Fatal(err)
 }
 
-// Group result slice by distinct superior.
 superiors, groups := slice.GroupBySuperior()
 for i, superior := range superiors {
-  // All rows in groups[i] have the same superior.
   subordinates := groups[i].DistinctSubordinate()
 
-  // Process with superior/subordinates.
-  // ...
+  if len(subordinates) == 0 {
+    log.Printf("Employee %+q has no subordinate.\n", superior.EmployeeSn)
+  } else {
+    log.Printf("Employee %+q has the following subordinates:\n", superior.EmployeeSn)
+    for _, subordinate := range subordinates {
+      log.Printf("\t%+q\n", subordinate.EmployeeSn)
+    }
+  }
 }
 ```
 
@@ -260,20 +260,28 @@ That's why we need directives:
 
 Directive represents a fragment of SQL query, usually declared by an XML element. `sqlw-mysql` processes directives in several passes:
 
-- The first pass all directives should generate fragments that form a valid SQL statement. This SQL statement is then used to determine statement type, to obtain result column information by querying against the database if it's a SELECT, e.g. `SELECT * FROM user WHERE id=1`
-- The second pass all directives should generate fragments that form a text statement for template renderring. It's no need to be a valid SQL statement, it's up to the template to decide how to use this text, e.g. `SELECT * FROM user WHERE id=:id`
+- The first pass all directives should generate fragments that form a valid SQL statement (e.g. `SELECT * FROM user WHERE id=1`). This SQL statement is then used to determine statement type, to obtain result column information by querying against the database if it's a SELECT. 
+- The second pass all directives should generate fragments that form a text statement for template renderring (e.g. `SELECT * FROM user WHERE id=:id`). It's no need to be a valid SQL statement, it's up to the template to decide how to use this text.
 - Some directives may run extra pass.
 
 Here is a list of current builtin directives:
 
 | Directive | Example | First pass result | Second pass result | Extra pass | Note |
 |-----------|---------|-------------------|--------------------|------------|------|
-| `<arg>` | `<arg name="id" type="int" />` | `""` | `""` | | Declare a wrapper function argument. It always returns empty string |
-| `<vars>` | `<vars flag1="true" flag2="false" />` | `""` | `""` | | Declare arbitary key/value pairs (XML attributes) for template to use. It always returns empty string |
-| `<repl>` | `<repl with=":id">1</repl>` | `"1"` | `":id"` | | It returns the inner text for the first pass and returns the value in `with` attribute for the second pass |
+| `<arg>`/`<a>` | `<a name="id" type="int" />` | `""` | `""` | | Declare a wrapper function argument's name and type. Always returns empty string |
+| `<vars>`/`<v>` | `<v flag1="true" flag2="false" />` | `""` | `""` | | Declare arbitary key/value pairs (XML attributes) for template to use. Always returns empty string |
+| `<repl>`/`<r>` | `<r by=":id">1</r>` | `"1"` | `":id"` | | Returns the inner text for the first pass and returns the value in `by` attribute for the second pass |
 | `<wc>` | `<wc table="employee" as="empl" />` | ```"`empl`.`id`, ..., `empl`.`superior_id`"``` | ```"`empl`.`id`, ..., `empl`.`superior_id`"``` | Run an extra pass to determine fields positions, see [here](#how-wildcard-directive-works) for detail | Always returns an expanded column list of the table |
+| `<text>`/`<t>` | `<t>{{ if ne .id }}</t>` | `""` | `{{ if ne .id }}` | `<t>innerText</t>` is equivalent to `<r by="innerText"></r>`|
+
+In future new directives may be added. And should be easy enough to implement one: impelemnts a go interface.
 
 #### How wildcard directive works
+
+`<wc>` (wildcard) directive serves several purposes:
+
+- Reduce verbosity, also it's a 'safer' version of `table.*` (It expands all columns of the table).
+- Figure out the positions of these expanded columns so that template can make use of.
 
 In the extra pass of `<wc>` directives, special marker columns are added before and after each `<wc>` directive, for example:
 
@@ -305,11 +313,117 @@ Then the wildcard directive is ignored since you're not selecting all columns of
 
 ## Code template
 
-_TODO_
+`sqlw-mysql` itself only provides information extracted from database/DSL. Most features are in fact implemented in code template. A code template is a directory looks like:
+
+``` bash
+$ tree default
+default
+├── group.tmpl
+├── headnote
+├── intf.tmpl
+├── manifest.json
+├── meta.tmpl
+├── meta_test.tmpl
+├── scan_type_map.json
+├── stmt.tmpl
+├── table.tmpl
+└── test.tmpl
+```
+
+A `manifest.json` list all files that the code template consist of:
+
+``` json
+{
+  "scan_type_map": "scan_type_map.json",
+  "headnote": "headnote",
+  "tmpl": {
+    "table": "table.tmpl",
+    "stmt": "stmt.tmpl",
+    "etc": [
+      "intf.tmpl",
+      "meta.tmpl",
+      "group.tmpl",
+      "test.tmpl",
+      "meta_test.tmpl"
+    ]
+  }
+}
+```
+
+`manifest["scan_type_map"]` is used to map database type (key) to go scan type (value, `value[0]` is for *NOT* nullable type and `value[1]` is for nullable type):
+
+``` json
+{
+  "float32":   ["float32", "null.Float32"],
+  "float64":   ["float64", "null.Float64"],
+  "bool":      ["bool", "null.Bool"],
+  "int8":      ["int8", "null.Int8"],
+  "uint8":     ["uint8", "null.Uint8"],
+  "int16":     ["int16", "null.Int16"],
+  "uint16":    ["uint16", "null.Uint16"],
+  "int32":     ["int32", "null.Int32"],
+  "uint32":    ["uint32", "null.Uint32"],
+  "int64":     ["int64", "null.Int64"],
+  "uint64":    ["uint64", "null.Uint64"],
+  "time":      ["time.Time", "null.Time"],
+  "bit":       ["string", "null.String"],
+  "json":      ["string", "null.String"],
+  "string":    ["string", "null.String"]
+}
+```
+
+`manifest["tmpl"]` list file templates: `manifest["tmpl"]["table"]` is used to render each table found in database; `manifest["tmpl"]["stmt"]` is used to render each statement XML found; `manifest["tmpl"]["etc"]` contains extra file templates.
+
+
 
 ### Default template
 
-_TODO_
+If no custom code template specified, or `-stmt @default` is given, then the default template is used.
+
+Genreated code depends on these external libraries:
+- [sqlx](https://github.com/jmoiron/sqlx).
+- `sqlboiler`'s [null-extended](https://github.com/volatiletech/null) package.
+
+For statement XML, the default template accept these `<vars>`:
+
+| Name | Example | Note |
+|------|---------|------|
+| `use_template` | `use_template="1"` | If presented, then the statement text is treated as a go [template](https://godoc.org/text/template) |
+| `in_query` | `in_query="1"` | If presented, then statement will do an "IN" expansion, see http://jmoiron.github.io/sqlx/#inQueries |
+| `return` | `return="one"` | For SELECT statement only, by default the generated function is returns a slice, if `return="one"`, then returns a single item instead |
+
+An example of `use_template`:
+
+``` xml
+<stmt name="UsersByCond">
+  <v use_template="1" />
+  <a name="id" type="int" />
+  <a name="name" type="string" />
+  <a name="birthday" type="time.Time" />
+  <a name="limit" type="int" />
+  SELECT
+    <wc table="user" />
+  FROM
+    user
+  WHERE
+    <t>{{ if ne .id 0 }}</t>
+      id=<r by=":id">1</r> AND
+    <t>{{ end }}</t>
+
+    <t>{{ if ne (len .name) 0 }}</t>
+      name=<r by=":name">"hjw"</r> AND
+    <t>{{ end }}</t>
+
+    <t>{{ if not .birthday.IsZero }}</t>
+      birthday=<r by=":birthday">NOW()</r> AND
+    <t>{{ end }}</t>
+    1
+  LIMIT <r by=":limit">10</r>
+</stmt>
+```
+
+Then the generated statement will be treated as a go template and will be renderred before normal execution. This is useful when you have many `WHERE` condtions combination.
+
 
 ## Command line options
 
@@ -345,7 +459,7 @@ For xo:
 
 For sqlboiler:
 - It seems that outer join is not supported yet? [Issue #153](https://github.com/volatiletech/sqlboiler/issues/153)
-- The genreated code quite large.
+- The genreated code is quite large.
 
 ## Licence
 
