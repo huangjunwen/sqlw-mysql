@@ -9,7 +9,12 @@
 - [Quickstart](#quickstart)
 - [Statement XML](#statement-xml)
   - [Directives](#directives)
-    - [How wildcard directive works](#how-wildcard-directive-works)
+    - [Arg directive](#arg-directive)
+    - [Vars directive](#vars-directive)
+    - [Replace directive](#replace-directive)
+    - [Text directive](#text-directive)
+    - [Wildcard directive](#wildcard-directive)
+      - [How wildcard directive works](#how-wildcard-directive-works)
 - [Code template](#code-template)
   - [Default template](#default-template)
 - [Command line options](#command-line-options)
@@ -264,19 +269,54 @@ Directive represents a fragment of SQL query, usually declared by an XML element
 - The second pass all directives should generate fragments that form a text statement for template renderring (e.g. `SELECT * FROM user WHERE id=:id`). It's no need to be a valid SQL statement, it's up to the template to decide how to use this text.
 - Some directives may run extra pass.
 
-Here is a list of current builtin directives:
+The following are a list of current builtin directives. In future new directives may be added. And should be easy enough to implement one: impelemnts a go interface.
 
-| Directive | Example | First pass result | Second pass result | Extra pass | Note |
-|-----------|---------|-------------------|--------------------|------------|------|
-| `<arg>`/`<a>` | `<a name="id" type="int" />` | `""` | `""` | | Declare a wrapper function argument's name and type. Always returns empty string |
-| `<vars>`/`<v>` | `<v flag1="true" flag2="false" />` | `""` | `""` | | Declare arbitary key/value pairs (XML attributes) for template to use. Always returns empty string |
-| `<repl>`/`<r>` | `<r by=":id">1</r>` | `"1"` | `":id"` | | Returns the inner text for the first pass and returns the value in `by` attribute for the second pass |
-| `<wc>` | `<wc table="employee" as="empl" />` | ```"`empl`.`id`, ..., `empl`.`superior_id`"``` | ```"`empl`.`id`, ..., `empl`.`superior_id`"``` | Run an extra pass to determine fields positions, see [here](#how-wildcard-directive-works) for detail | Always returns an expanded column list of the table |
-| `<text>`/`<t>` | `<t>{{ if ne .id }}</t>` | `""` | `{{ if ne .id }}` | `<t>innerText</t>` is equivalent to `<r by="innerText"></r>`|
+#### Arg directive
 
-In future new directives may be added. And should be easy enough to implement one: impelemnts a go interface.
+- Name: `<arg>`/`<a>`
+- Example: `<a name="id" type="int" />`
+- First pass result: `""`
+- Second pass result: `""`
 
-#### How wildcard directive works
+Declare a wrapper function argument's name and type. Always returns empty string.
+
+#### Vars directive
+
+- Name: `<vars>`/`<v>`
+- Example: `<v flag1="true" flag2="true" />`
+- First pass result: `""`
+- Second pass result: `""`
+
+Declare arbitary key/value pairs (XML attributes) for template to use. Always returns empty string.
+
+#### Replace directive
+
+- Name: `<repl>`/`<r>`
+- Example: `<r by=":id">1</r>`
+- First pass result: `"1"`
+- Second pass result: `":id"`
+
+Returns the inner text for the first pass and returns the value in `by` attribute for the second pass.
+
+#### Text directive
+
+- Name: `<text>`/`<t>`
+- Example: `<t>{{ if ne .id 0 }}</t>`
+- First pass result: `""`
+- Second pass result: `"{{ if ne .id 0 }}"`
+
+`<t>innerText</t>` is equivalent to `<r by="innerText"></r>`.
+
+#### Wildcard directive
+
+- Name: `<wc>`
+- Example: `<wc table="employee" as="empl" />`
+- First pass result: ```"`empl`.`id`, ..., `empl`.`superior_id`"```
+- Second pass result: ```"`empl`.`id`, ..., `empl`.`superior_id`"```
+
+Returns the expanded column list of the table. It runs an extra pass to determine fields positions, see [here](#how-wildcard-directive-works) for detail.
+
+##### How wildcard directive works
 
 `<wc>` (wildcard) directive serves several purposes:
 
