@@ -67,7 +67,7 @@ CREATE TABLE `employee` (
 ```
 
 
-Now run `sqlw-mysql` against the database. You will see a `models` directory is created with several source files generated:
+Now run `sqlw-mysql`. You will see a `models` directory is created with several source files generated:
 
 ``` bash
 $ sqlw-mysql -dsn "user:passwd@tcp(host:port)/db?parseTime=true"
@@ -265,7 +265,7 @@ That's why we need directives:
 
 Directive represents a fragment of SQL query, usually declared by an XML element. `sqlw-mysql` processes directives in several passes:
 
-- The first pass all directives should generate fragments that form a valid SQL statement (e.g. `SELECT * FROM user WHERE id=1`). This SQL statement is then used to determine statement type, to obtain result column information by querying against the database if it's a SELECT. 
+- The first pass all directives should generate fragments that form a valid SQL statement (e.g. `SELECT * FROM user WHERE id=1`). This SQL statement is then used to determine statement type, to obtain result column information by querying the database if it's a SELECT. 
 - The second pass all directives should generate fragments that form a text statement for template renderring (e.g. `SELECT * FROM user WHERE id=:id`). It's no need to be a valid SQL statement, it's up to the template to decide how to use this text.
 - Some directives may run extra pass.
 
@@ -422,7 +422,7 @@ If no custom code template specified, or `-stmt @default` is given, then the def
 
 Genreated code depends on these external libraries:
 - [sqlx](https://github.com/jmoiron/sqlx).
-- `sqlboiler`'s [null-extended](https://github.com/volatiletech/null) package.
+- [sqlboiler](https://github.com/volatiletech/sqlboiler)'s [null-extended](https://github.com/volatiletech/null) package.
 
 For statement XML, the default template accept these `<vars>`:
 
@@ -430,7 +430,7 @@ For statement XML, the default template accept these `<vars>`:
 |------|---------|------|
 | `use_template` | `use_template="1"` | If presented, then the statement text is treated as a go [template](https://godoc.org/text/template) |
 | `in_query` | `in_query="1"` | If presented, then statement will do an "IN" expansion, see http://jmoiron.github.io/sqlx/#inQueries |
-| `return` | `return="one"` | For SELECT statement only, by default the generated function is returns a slice, if `return="one"`, then returns a single item instead |
+| `return` | `return="one"` | For SELECT statement only, by default the generated function returns a slice, if `return="one"`, then returns a single item instead |
 
 An example of `use_template`:
 
@@ -489,17 +489,15 @@ Usage of sqlw-mysql:
 
 ## Motivation
 
-This tool is inspired by [xo](https://github.com/xo/xo) and influenced by tools like [sqlboiler](https://github.com/volatiletech/sqlboiler) since I'm a big fan of code generation and database first approach. However, some issues arised when using them.
+This tool is inspired by [xo](https://github.com/xo/xo). I like the code generation and database first approach. And quries are run in real database, this can reduce many errors for hand written SQL. But some issues arise when I start to use it:
 
-For xo:
-- The support for MySQL seems not very well
-  - [Issue #123](https://github.com/xo/xo/issues/123)
-  - Can't handle queries like: `SELECT user.*, employee.* FROM user LEFT JOIN employee ON employee.user_id=user.id;` since it use `CREATE VIEW ...` to obtain result column information but `CREATE VIEW` does not permit duplicate column names: both `user` and `employee` have `id`. As a result, you must hand write aliases for all the columns if you want to select them all.
-- The DSL is quite limited, you really need to hand write every bit of the SQL.
+- The DSL is quite limited, you need to hand write every bit of the SQL. Sometimes this can be quite inconvenient.
+- Can't handle quries like: `SELECT user.*, employee.* FROM user LEFT JOIN employee ON employee.user_id=user.id`. Since it use `CREATE VIEW...` to obtain result columns information but `CREATE VIEW...` does not permit duplicate column names: both `user` and `employee` have `id`. As a result, you have to write aliases for all columns if you want to select them all.
+- Some MySQL related issue: [Issue #123](https://github.com/xo/xo/issues/123)
 
-For sqlboiler:
-- It seems that outer join is not supported yet? [Issue #153](https://github.com/volatiletech/sqlboiler/issues/153)
-- The genreated code is quite large.
+I have also looked into some ORMs. Many people (including me) like ORM because it's convenient. But this is true only when your requirement fits into ORM's design model. Beyond that, often you have to hand write SQL too.
+
+And `sqlw-mysql` is my attempt to add some convenient to xo's approach.
 
 ## Licence
 
