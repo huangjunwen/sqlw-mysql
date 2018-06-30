@@ -109,11 +109,11 @@ func (slice *{{ $resultName }}Slice) nxItem(i int) interface{} {
 }
 
 func (slice *{{ $resultName }}Slice) nxAppend(item interface{}) {
-  obj := (*{{ $resultName }})(nil)
-  if item != nil {
-    obj = item.(*{{ $resultName }})
+  if item == nil {
+    *slice = append(*slice, &{{ $resultName }}{})
+  } else {
+    *slice = append(*slice, item.(*{{ $resultName }}))
   }
-  *slice = append(*slice, obj)
 }
 
 // One returns a single {{ $resultName }}. It panics if the length of slice is not 1.
@@ -155,18 +155,11 @@ func (slices *nx{{ $resultName }}Slices) nxItem(i int) interface{} {
 }
 
 func (slices *nx{{ $resultName }}Slices) nxAppend(item interface{}) {
-  obj := {{ $resultName }}Slice{}
-  if item != nil {
-    switch item.(type) {
-    case {{ $resultName }}Slice:
-      obj = item.({{ $resultName }}Slice)
-    case *{{ $resultName }}Slice:
-      obj = *(item.(*{{ $resultName }}Slice))
-    default:
-      panic(fmt.Errorf("Expect {{ $resultName }}Slice but got %T", item))
-    }
+  if item == nil {
+    *slices = append(*slices, {{ $resultName }}Slice{})
+  } else {
+    *slices = append(*slices, *(item.(*{{ $resultName }}Slice)))
   }
-  *slices = append(*slices, obj)
 }
 
       {{ end }} {{/*{{ if and (not $flagReturnOne) $flagHasWildcard }}*/}}

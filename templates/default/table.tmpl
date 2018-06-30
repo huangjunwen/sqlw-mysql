@@ -271,10 +271,10 @@ func (slice *{{ $uname }}Slice) nxItem(i int) interface{} {
 }
 
 func (slice *{{ $uname }}Slice) nxAppend(item interface{}) {
-  obj := (*{{ $uname }})(nil)
-  if item != nil {
-    obj = item.(*{{ $uname }})
+  if item == nil {
+    *slice = append(*slice, &{{ $uname }}{})
+  } else {
+    *slice = append(*slice, item.(*{{ $uname }}))
   }
-  *slice = append(*slice, obj)
 }
 
