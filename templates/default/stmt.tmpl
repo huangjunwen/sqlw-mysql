@@ -150,12 +150,23 @@ func (slices *nx{{ $resultName }}Slices) nxLen() int {
   return len(*slices)
 }
 
-func (slices *nx{{ $resultName }}Slices) nxSlicer(i int) Slicer {
+func (slices *nx{{ $resultName }}Slices) nxItem(i int) interface{} {
   return &((*slices)[i])
 }
 
-func (slices *nx{{ $resultName }}Slices) nxAppend() {
-  *slices = append(*slices, nil)
+func (slices *nx{{ $resultName }}Slices) nxAppend(item interface{}) {
+  obj := {{ $resultName }}Slice{}
+  if item != nil {
+    switch item.(type) {
+    case {{ $resultName }}Slice:
+      obj = item.({{ $resultName }}Slice)
+    case *{{ $resultName }}Slice:
+      obj = *(item.(*{{ $resultName }}Slice))
+    default:
+      panic(fmt.Errorf("Expect {{ $resultName }}Slice but got %T", item))
+    }
+  }
+  *slices = append(*slices, obj)
 }
 
       {{ end }} {{/*{{ if and (not $flagReturnOne) $flagHasWildcard }}*/}}

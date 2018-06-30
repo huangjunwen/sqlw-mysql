@@ -60,18 +60,6 @@ type Slicer interface {
   // nxItem returns the i-th item of the slice. i should be within [0, nxLen()), otherwise a panic will be raised.
   nxItem(i int) interface{}
 
-  // nxAppend an item to the slice. If item is nil, then an empty item should be appended.
+  // nxAppend an item to the slice. If item is nil, then a valid empty item should be appended.
   nxAppend(item interface{})
-}
-
-// Slicers represents a slice of Slicer.
-type Slicers interface {
-  // nxLen returns the number of Slicer.
-  nxLen() int
-
-  // nxSlicer returns the i-th Slicer.
-  nxSlicer(i int) Slicer
-
-  // nxAppend appends an empty Slicer.
-  nxAppend()
 }
