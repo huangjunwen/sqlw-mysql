@@ -27,6 +27,62 @@ func slice(s string, args ...int) (result string, err error) {
 	}
 }
 
+// Three forms to use enum:
+// Enum N: iterate [0, N) in step 1
+// Enum N, M: iterate [N, M) in step 1
+// Enum N, M, S: iterate [N, M) in step S where S can be postive/negative but can't be 0
+// https://stackoverflow.com/questions/22713500/iterating-a-range-of-integers-in-go-templates
+func enum(args ...int) (chan int, error) {
+	var start, end, step int
+	switch len(args) {
+	case 1:
+		start = 0
+		end = args[0]
+		step = 1
+	case 2:
+		start = args[0]
+		end = args[1]
+		step = 1
+	case 3:
+		start = args[0]
+		end = args[1]
+		step = args[2]
+	default:
+		return nil, fmt.Errorf("Enum: expect 1 to 3 args but got %d args", len(args))
+	}
+
+	if step > 0 {
+		if end < start {
+			return nil, fmt.Errorf("Enum: step(%d) > 0 but end(%d) < start(%d)", step, end, start)
+		}
+	} else if step < 0 {
+		if end > start {
+			return nil, fmt.Errorf("Enum: step(%d) < 0 but end(%d) > start(%d)", step, end, start)
+		}
+	} else {
+		return nil, fmt.Errorf("Enum: step can't be 0")
+	}
+
+	ret := make(chan int)
+	go func() {
+		if step > 0 {
+			i := start
+			for i < end {
+				ret <- i
+				i += step
+			}
+		} else {
+			i := start
+			for i > end {
+				ret <- i
+				i += step
+			}
+		}
+		close(ret)
+	}()
+	return ret, nil
+}
+
 func ternary(b bool, t interface{}, f interface{}) interface{} {
 	if b {
 		return t
@@ -50,6 +106,8 @@ func (r *Renderer) funcMap() template.FuncMap {
 		"Replace": replace,
 
 		"Slice": slice,
+
+		"Enum": enum,
 
 		"Ternary": ternary,
 
