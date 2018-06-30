@@ -9,22 +9,15 @@ import (
 	"github.com/huangjunwen/sqlw-mysql/utils"
 )
 
-func slice(s string, args ...int) (result string, err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			result = ""
-			err = fmt.Errorf("Slice: %s", e)
-		}
-	}()
+func errorf(format string, a ...interface{}) (string, error) {
+	return "", fmt.Errorf(format, a...)
+}
 
-	switch len(args) {
-	case 1:
-		return s[args[0]:], nil
-	case 2:
-		return s[args[0]:args[1]], nil
-	default:
-		return "", fmt.Errorf("Slice: expect one or two integer but got %d", len(args))
+func ternary(b bool, t interface{}, f interface{}) interface{} {
+	if b {
+		return t
 	}
+	return f
 }
 
 // Three forms to use enum:
@@ -83,19 +76,30 @@ func enum(args ...int) (chan int, error) {
 	return ret, nil
 }
 
-func ternary(b bool, t interface{}, f interface{}) interface{} {
-	if b {
-		return t
-	}
-	return f
-}
-
-func errorf(format string, a ...interface{}) (string, error) {
-	return "", fmt.Errorf(format, a...)
+func add(x, y int) int {
+	return x + y
 }
 
 func replace(s, old, new string) string {
 	return strings.Replace(s, old, new, -1)
+}
+
+func slice(s string, args ...int) (result string, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			result = ""
+			err = fmt.Errorf("Slice: %s", e)
+		}
+	}()
+
+	switch len(args) {
+	case 1:
+		return s[args[0]:], nil
+	case 2:
+		return s[args[0]:args[1]], nil
+	default:
+		return "", fmt.Errorf("Slice: expect one or two integer but got %d", len(args))
+	}
 }
 
 func (r *Renderer) funcMap() template.FuncMap {
@@ -103,13 +107,15 @@ func (r *Renderer) funcMap() template.FuncMap {
 	return template.FuncMap{
 		"Errorf": errorf,
 
-		"Replace": replace,
-
-		"Slice": slice,
+		"Ternary": ternary,
 
 		"Enum": enum,
 
-		"Ternary": ternary,
+		"Add": add,
+
+		"Replace": replace,
+
+		"Slice": slice,
 
 		"UpperCamel": utils.UpperCamel,
 
