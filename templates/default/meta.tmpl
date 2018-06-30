@@ -293,18 +293,57 @@ func selectTRCond(ctx context.Context, q Queryer, tr TableRowWithPrimary, lock b
     query += " FOR UPDATE"
   }
 
-  // Prepare result.
-  result := []interface{}{}
-  tr.nxPreScan(&result)
-
   // Query.
   row := q.QueryRowContext(ctx, query, args...)
+
+  // Process result.
+  result := []interface{}{}
+  tr.nxPreScan(&result)
   if err := row.Scan(result...); err != nil {
     return err
   }
 
   return tr.nxPostScan()
 
+}
+
+// selectTRsCond selects `trs` from table by custom condition. `trs` must be valid `TableRow` slice.
+// If `lock` is true, then "SELECT ... FOR UPDATE" will be used.
+func selectTRsCond(ctx context.Context, q Queryer, meta *TableMeta, trs Slicer, lock bool, cond string, args ...interface{}) error {
+
+  // Construct query.
+  query := fmt.Sprintf("%s WHERE %s", meta.selectQuery, cond)
+  if lock {
+    query += " FOR UPDATE"
+  }
+
+  // Query.
+  rows, err := q.QueryContext(ctx, query, args...)
+  if err != nil {
+    return err
+  }
+  defer rows.Close()
+
+  // Process result.
+  result := []interface{}{}
+  for rows.Next() {
+    trs.nxAppend(nil)
+    tr := trs.nxItem(trs.nxLen() - 1).(TableRow)
+
+    result = result[0:0]
+    tr.nxPreScan(&result)
+
+    if err := rows.Scan(result...); err != nil {
+      return err
+    }
+
+    if err := tr.nxPostScan(); err != nil {
+      return err
+    }
+
+  }
+
+  return nil
 }
 
 func appendPrimaryValues(dest *[]interface{}, tr TableRowWithPrimary) {

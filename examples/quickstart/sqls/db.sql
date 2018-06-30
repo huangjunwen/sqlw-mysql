@@ -16,7 +16,7 @@ CREATE TABLE `employee` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `employee_sn` (`employee_sn`),
   UNIQUE KEY `user_id` (`user_id`),
-  KEY `fk_superior` (`superior_id`),
+  KEY `superior_id` (`superior_id`),
   CONSTRAINT `fk_superior` FOREIGN KEY (`superior_id`) REFERENCES `employee` (`id`),
   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 );

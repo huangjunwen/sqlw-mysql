@@ -57,6 +57,13 @@ func main() {
 			log.Fatal(err)
 		}
 
+		slice, err := models.EmployeeSliceBySuperiorId(ctx, tx, 0, 3, false)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, empl := range slice {
+			log.Printf("Employee %+q is subordinate of %d", empl.EmployeeSn, 3)
+		}
 	}
 
 	{
