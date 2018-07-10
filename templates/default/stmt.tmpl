@@ -41,7 +41,7 @@ var (
 
   {{ if eq $type "SELECT"}}
 
-    {{ $resultName := Ternary $flagSingleWildcard (UpperCamel (index $wcs.Wildcards 0).Table.TableName) (printf "%sResult" $uname) }}
+    {{ $resultName := Ternary $flagSingleWildcard (UpperCamel ($wcs.Wildcard 0).Table.TableName) (printf "%sResult" $uname) }}
 
     {{ if not $flagSingleWildcard }}
 
