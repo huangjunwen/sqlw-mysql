@@ -58,7 +58,7 @@ func TestInsertTR(t *testing.T) {
 			WithArgs("", 0).
 			WillReturnResult(sqlmock.NewResult(13, 1))
 		tr := Tst1{}
-		assert.NoError(insertTR(context.Background(), db, &tr))
+		assert.NoError(insertTR(context.Background(), db, &tr, ""))
 		assert.NoError(mock.ExpectationsWereMet())
 		assert.Equal(Tst1{c1: "", p2: 0, p1: 0, a1: 13}, tr)
 	}
@@ -73,9 +73,31 @@ func TestInsertTR(t *testing.T) {
 			p2: 2,
 			a1: 3,
 		}
-		assert.NoError(insertTR(context.Background(), db, &tr))
+		assert.NoError(insertTR(context.Background(), db, &tr, ""))
 		assert.NoError(mock.ExpectationsWereMet())
 		assert.Equal(Tst1{c1: "", p2: 2, p1: 1, a1: 3}, tr)
+	}
+
+	// Insert ignore.
+	{
+		mock.ExpectExec("INSERT IGNORE INTO `tst1` \\(`c1`, `p2`\\) VALUES \\(\\?, \\?\\)").
+			WithArgs("", 0).
+			WillReturnResult(sqlmock.NewResult(13, 1))
+		tr := Tst1{}
+		assert.NoError(insertTR(context.Background(), db, &tr, "ignore"))
+		assert.NoError(mock.ExpectationsWereMet())
+		assert.Equal(Tst1{c1: "", p2: 0, p1: 0, a1: 13}, tr)
+	}
+
+	// Replace.
+	{
+		mock.ExpectExec("REPLACE INTO `tst1` \\(`c1`, `p2`\\) VALUES \\(\\?, \\?\\)").
+			WithArgs("", 0).
+			WillReturnResult(sqlmock.NewResult(13, 1))
+		tr := Tst1{}
+		assert.NoError(insertTR(context.Background(), db, &tr, "replace"))
+		assert.NoError(mock.ExpectationsWereMet())
+		assert.Equal(Tst1{c1: "", p2: 0, p1: 0, a1: 13}, tr)
 	}
 }
 

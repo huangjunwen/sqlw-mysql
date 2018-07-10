@@ -137,7 +137,16 @@ func (tr *{{ $uname }}) PrimaryValue() interface{} {
 // Insert is used to insert the row into table.
 // This method will also update the value in auto increment column (if exists).
 func (tr *{{ $uname }}) Insert(ctx context.Context, e Execer) error {
-  return insertTR(ctx, e, tr)
+  return insertTR(ctx, e, tr, "")
+}
+
+// InsertEx is the same as Insert with extra modifier specified.
+// modifier can be one of:
+//   - "ignore": "INSERT IGNORE INTO ..."
+//   - "replace": "REPLACE INTO ..."
+//   - "": Normal "INSERT INTO ..."
+func (tr *{{ $uname }}) InsertEx(ctx context.Context, e Execer, modifier string) error {
+  return insertTR(ctx, e, tr, modifier)
 }
 
 {{ if .Table.Primary.Valid -}}

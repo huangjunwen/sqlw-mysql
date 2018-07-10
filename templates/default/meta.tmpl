@@ -135,8 +135,14 @@ func (meta *TableMeta) TableName() string {
 // insertTR inserts `tr` into table. `tr` must be valid. Rules:
 //   - If column has non zero value, then this column will be inserted.
 //   - Othewise if the column doesn't have not NULL default, this column will be inserted.
+//
 // If `tr` has auto increment column then insertTR will also update it.
-func insertTR(ctx context.Context, e Execer, tr TableRow) error {
+//
+// `modifier` can be one of:
+//   - "ignore": "INSERT IGNORE INTO ..."
+//   - "replace": "REPLACE INTO ..."
+//   - "": Normal "INSERT INTO ..."
+func insertTR(ctx context.Context, e Execer, tr TableRow, modifier string) error {
 
   meta := tr.TableMeta()
   if !tr.Valid() {
@@ -159,12 +165,23 @@ func insertTR(ctx context.Context, e Execer, tr TableRow) error {
     args = append(args, val)
   }
 
+  // Modifier.
+  verb := ""
+  switch modifier {
+  case "ignore":
+    verb = "INSERT IGNORE INTO"
+  case "replace":
+    verb = "REPLACE INTO"
+  default:
+    verb = "INSERT INTO"
+  }
+
   // Construct query.
   query := ""
   if len(cols) == 0 {
-    query = fmt.Sprintf("INSERT INTO `%s` () VALUES ()", meta.tableName)
+    query = fmt.Sprintf("%s `%s` () VALUES ()", verb, meta.tableName)
   } else {
-    query = fmt.Sprintf("INSERT INTO `%s` (`%s`) VALUES (%s)", meta.tableName, strings.Join(cols, "`, `"), strings.Join(phs, ", "))
+    query = fmt.Sprintf("%s `%s` (`%s`) VALUES (%s)", verb, meta.tableName, strings.Join(cols, "`, `"), strings.Join(phs, ", "))
   }
 
   // Query.

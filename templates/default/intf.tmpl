@@ -16,6 +16,12 @@ type Queryer interface {
   QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
 }
 
+// ExecQueryer = Execer + Queryer
+type ExecQueryer interface {
+  Execer
+  Queryer
+}
+
 // ColumnScanner represents a collection of columns that can be scanned into from a row.
 type ColumnScanner interface {
   // nxPreScan appends all columns to dest for scanning.
@@ -63,3 +69,9 @@ type Slicer interface {
   // nxAppend appends an item to the slice. If item is nil, then a valid empty item should be appended.
   nxAppend(item interface{})
 }
+
+var (
+  _ ExecQueryer = (*sql.DB)(nil)
+  _ ExecQueryer = (*sql.Conn)(nil)
+  _ ExecQueryer = (*sql.Tx)(nil)
+)
