@@ -6,6 +6,7 @@ import (
   "fmt"
   "strings"
   "time"
+  "database/sql"
 
   "gopkg.in/volatiletech/null.v6"
 )
@@ -150,14 +151,14 @@ func (tr *{{ $uname }}) InsertEx(ctx context.Context, e Execer, modifier string)
 }
 
 {{ if .Table.Primary.Valid -}}
-// Reload is used to reload the row from table.
+// Reload is used to reload the row from table. It returns error if no row is found.
 func (tr *{{ $uname }}) Reload(ctx context.Context, q Queryer) error {
   return selectTR(ctx, q, tr, false)
 }
 {{ end }}
 
 {{ if .Table.Primary.Valid -}}
-// ReloadWithLock is used to reload this row with lock from table.
+// ReloadWithLock is used to reload this row with lock from table. It returns error if no row is found.
 func (tr *{{ $uname }}) ReloadWithLock(ctx context.Context, q Queryer) error {
   return selectTR(ctx, q, tr, true)
 }
@@ -203,6 +204,7 @@ func (tr *{{ $uname }}) {{ $refTable.UName }}By{{ $fk.UName }}(ctx context.Conte
 {{ range $index := .Table.Indices -}}
   {{ if $index.IsUnique -}}
 // {{ $uname }}By{{ $index.UName }} is used to select {{ $uname }} by `{{ $index.IndexName }}` index.
+// It returns nil if no row is found.
 func {{ $uname }}By{{ $index.UName }}(ctx context.Context, q Queryer{{ range $col := $index.Columns }}, {{ $col.LName }} {{ NotNullScanType $col }}{{ end }}, lock bool) (*{{ $uname }}, error){
   tr := {{ $uname }}{}
   if err := selectTRCond(ctx, q, &tr, lock, "1{{ range $col := $index.Columns }} AND `{{ $col.ColumnName }}`=?{{ end }}",
@@ -210,6 +212,9 @@ func {{ $uname }}By{{ $index.UName }}(ctx context.Context, q Queryer{{ range $co
     {{ $col.LName }},
     {{- end -}}
   ); err != nil {
+    if err == sql.ErrNoRows {
+      err = nil
+    }
     return nil, err
   }
   return &tr, nil
