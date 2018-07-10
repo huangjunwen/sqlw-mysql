@@ -62,8 +62,15 @@ func main() {
 			log.Fatal(err)
 		}
 		for _, empl := range slice {
-			log.Printf("Employee %+q is subordinate of %d", empl.EmployeeSn, 3)
+			log.Printf("Employee %+q is subordinate of %d\n", empl.EmployeeSn, 3)
 		}
+
+		// Select
+		empl, err := models.EmployeeByEmployeeSn(ctx, tx, "NotExists", false)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("EmployeeByEmployeeSn returns %v\n", empl)
 	}
 
 	{
