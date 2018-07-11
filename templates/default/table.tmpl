@@ -219,35 +219,6 @@ func {{ $uname }}By{{ $index.UName }}(ctx context.Context, q Queryer{{ range $co
   }
   return &tr, nil
 }
-  {{ else -}}
-    {{ $cols := $index.Columns }}
-    {{ $n := len $cols }}
-// {{ $uname }}SliceBy{{ $index.UName }} is used to select {{ $uname }} slice by the first n columns of the `{{ $index.IndexName }}` index. 
-//If n is out of range, then all columns of the index will be used.
-func {{ $uname }}SliceBy{{ $index.UName }}(ctx context.Context, q Queryer, n int{{ range $col := $index.Columns }}, {{ $col.LName }} {{ NotNullScanType $col }}{{ end }}, lock bool) ({{ $uname }}Slice, error) {
-  conds := []string{}
-  args := []interface{}{}
-  switch n {
-  default:
-    fallthrough
-    {{ range $i := Enum $n 0 -1 -}}
-      {{ $col := index $cols (Add $i -1) -}}
-  case {{ $i }}:
-    conds = append(conds, "`{{ $col.ColumnName }}`=?")
-    args = append(args, {{ $col.LName }})
-      {{ if gt $i 1 -}}
-    fallthrough
-      {{ end -}}
-    {{ end -}}
-  }
-  cond := strings.Join(conds, " AND ")
-
-  trs := {{ $uname }}Slice{}
-  if err := selectTRsCond(ctx, q, nx{{ $uname }}Meta, &trs, lock, cond, args...); err != nil {
-    return nil, err 
-  }
-  return trs, nil
-} 
   {{ end -}}
 {{ end }}
 
