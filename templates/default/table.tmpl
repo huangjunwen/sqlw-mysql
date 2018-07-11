@@ -26,7 +26,7 @@ var (
 // {{ $uname }} represents a row of table `{{ $name }}`.
 type {{ $uname }} struct {
   {{ range $col := .Table.Columns -}}
-  {{ $col.UName }} {{ ScanType $col }} `json:"{{ $col.ColumnName }}" db:"{{ $col.ColumnName }}"` {{ if $col.HasDefaultValue }}// Has default.{{ end }}
+  {{ $col.UName }} {{ ScanType $col }} `json:"{{ $col.ColumnName }}" db:"{{ $col.ColumnName }}"` // Has {{ if not $col.HasDefaultValue }}no {{ end  }}default.
   {{ end -}}
 }
 
