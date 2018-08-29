@@ -145,12 +145,12 @@ func (manif *Manifest) loadTmpl(name string) (*template.Template, *template.Temp
 		return nil, nil, err
 	}
 
-	nameTmpl, err := template.New(name).Funcs(manif.funcMap).Parse(strings.TrimSuffix(name, ".tmpl"))
+	nameTmpl, err := template.New(name + "@name").Funcs(manif.funcMap).Parse(strings.TrimSuffix(name, ".tmpl"))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	contentTmpl, err := template.New(name).Funcs(manif.funcMap).Parse(string(content))
+	contentTmpl, err := template.New(name + "@content").Funcs(manif.funcMap).Parse(string(content))
 	if err != nil {
 		return nil, nil, err
 	}

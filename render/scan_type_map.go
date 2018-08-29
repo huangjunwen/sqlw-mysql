@@ -36,7 +36,7 @@ func LoadScanTypeMap(r io.Reader) (ScanTypeMap, error) {
 func (m ScanTypeMap) scanType(val interface{}, i int) (string, error) {
 
 	if m == nil {
-		return "", fmt.Errorf("ScanTypeMap is empty")
+		return "", fmt.Errorf("'scanTypeMap' is not define in manifest.json")
 	}
 
 	dataType, nullable := "", true

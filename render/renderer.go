@@ -18,6 +18,7 @@ import (
 
 // Renderer is used to render templates to final source code.
 type Renderer struct {
+	// Options.
 	dsn       string
 	stmtDir   string
 	tmplDir   http.FileSystem
@@ -26,6 +27,7 @@ type Renderer struct {
 	whitelist map[string]struct{}
 	blacklist map[string]struct{}
 
+	// Runtime vars.
 	loader   *datasrc.Loader
 	db       *infos.DBInfo
 	manifest *Manifest
@@ -168,7 +170,7 @@ func (r *Renderer) Run() error {
 	}
 
 	// Load manifest.
-	r.manifest, err = LoadManifest(r.tmplDir, nil) // TODO: funcMap
+	r.manifest, err = LoadManifest(r.tmplDir, r.funcMap())
 	if err != nil {
 		return err
 	}
