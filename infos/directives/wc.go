@@ -8,9 +8,10 @@ import (
 	"strings"
 
 	"github.com/beevik/etree"
+	"github.com/huandu/xstrings"
+
 	"github.com/huangjunwen/sqlw-mysql/datasrc"
 	"github.com/huangjunwen/sqlw-mysql/infos"
-	"github.com/huangjunwen/sqlw-mysql/utils"
 )
 
 // WildcardsInfo contains wildcard expansions information in a SELECT statement.
@@ -24,7 +25,6 @@ type WildcardInfo struct {
 	table  *infos.TableInfo
 	alias  string
 	offset int // Offset in result columns.
-	camel  utils.CamelName
 }
 
 type wcDirective struct {
@@ -167,7 +167,6 @@ func newWildcardsInfo(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.Stmt
 					alias:  directive.alias,
 					offset: len(resultCols2),
 				}
-				curWildcardInfo.camel = utils.NewCamelName(curWildcardInfo.WildcardName())
 				curN = n
 				info.wildcards = append(info.wildcards, curWildcardInfo)
 			} else {
@@ -330,20 +329,12 @@ func (info *WildcardInfo) Offset() int {
 	return info.offset
 }
 
-// UName is the upper camel case of WildcardName.
-func (info *WildcardInfo) UName() string {
+// CamelName is the camel case of WildcardName.
+func (info *WildcardInfo) CamelName() string {
 	if info == nil {
 		return ""
 	}
-	return info.camel.UName
-}
-
-// LName is the lower camel case of WildcardName.
-func (info *WildcardInfo) LName() string {
-	if info == nil {
-		return ""
-	}
-	return info.camel.LName
+	return xstrings.ToCamelCase(info.WildcardName())
 }
 
 func (d *wcDirective) Initialize(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.StmtInfo, tok etree.Token) error {

@@ -88,10 +88,8 @@ func TestDBInfo(t *testing.T) {
 
 		assert.True(user.Valid())
 
-		assert.Equal("User", user.UName())
-		assert.Equal("", nilTableInfo.UName())
-		assert.Equal("user", user.LName())
-		assert.Equal("", nilTableInfo.LName())
+		assert.Equal("User", user.CamelName())
+		assert.Equal("", nilTableInfo.CamelName())
 
 		assert.Equal("user", user.TableName())
 		assert.Equal("", nilTableInfo.TableName())
@@ -166,8 +164,7 @@ func TestDBInfo(t *testing.T) {
 	{
 		{
 			col := nilColumnInfo
-			assert.Equal("", col.UName())
-			assert.Equal("", col.LName())
+			assert.Equal("", col.CamelName())
 			assert.Nil(col.Table())
 			assert.Equal("", col.ColumnName())
 			assert.Equal("", col.DataType())
@@ -179,8 +176,7 @@ func TestDBInfo(t *testing.T) {
 
 		{
 			col := user.ColumnByName("id")
-			assert.Equal("Id", col.UName())
-			assert.Equal("id", col.LName())
+			assert.Equal("Id", col.CamelName())
 			assert.Equal(user, col.Table())
 			assert.Equal("id", col.ColumnName())
 			assert.Equal("uint32", col.DataType())
@@ -191,8 +187,7 @@ func TestDBInfo(t *testing.T) {
 		}
 		{
 			col := user.ColumnByName("female")
-			assert.Equal("Female", col.UName())
-			assert.Equal("female", col.LName())
+			assert.Equal("Female", col.CamelName())
 			assert.Equal(user, col.Table())
 			assert.Equal("female", col.ColumnName())
 			assert.Equal("bool", col.DataType())
@@ -208,8 +203,7 @@ func TestDBInfo(t *testing.T) {
 	{
 		{
 			idx := nilIndexInfo
-			assert.Equal("", idx.UName())
-			assert.Equal("", idx.LName())
+			assert.Equal("", idx.CamelName())
 			assert.Equal("", idx.IndexName())
 			assert.Nil(idx.Table())
 			assert.Len(idx.Columns(), 0)
@@ -218,8 +212,7 @@ func TestDBInfo(t *testing.T) {
 		}
 		{
 			idx := user.IndexByName("idx_name")
-			assert.Equal("IdxName", idx.UName())
-			assert.Equal("idxName", idx.LName())
+			assert.Equal("IdxName", idx.CamelName())
 			assert.Equal("idx_name", idx.IndexName())
 			assert.NotNil(idx.Table())
 			assert.Len(idx.Columns(), 2)
@@ -230,8 +223,7 @@ func TestDBInfo(t *testing.T) {
 
 		{
 			idx := employee.IndexByName("idx_user_id")
-			assert.Equal("IdxUserId", idx.UName())
-			assert.Equal("idxUserId", idx.LName())
+			assert.Equal("IdxUserId", idx.CamelName())
 			assert.Equal("idx_user_id", idx.IndexName())
 			assert.NotNil(idx.Table())
 			assert.Len(idx.Columns(), 1)
@@ -246,8 +238,7 @@ func TestDBInfo(t *testing.T) {
 	{
 		{
 			fk := nilFKInfo
-			assert.Equal("", fk.UName())
-			assert.Equal("", fk.LName())
+			assert.Equal("", fk.CamelName())
 			assert.Equal("", fk.FKName())
 			assert.Nil(fk.Table())
 			assert.Len(fk.Columns(), 0)
@@ -258,8 +249,7 @@ func TestDBInfo(t *testing.T) {
 
 		{
 			fk := employee.FKByName("fk_superior_id")
-			assert.Equal("FkSuperiorId", fk.UName())
-			assert.Equal("fkSuperiorId", fk.LName())
+			assert.Equal("FkSuperiorId", fk.CamelName())
 			assert.Equal("fk_superior_id", fk.FKName())
 			assert.NotNil(fk.Table())
 			assert.Len(fk.Columns(), 1)

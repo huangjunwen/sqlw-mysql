@@ -3,8 +3,9 @@ package infos
 import (
 	"fmt"
 
+	"github.com/huandu/xstrings"
+
 	"github.com/huangjunwen/sqlw-mysql/datasrc"
-	"github.com/huangjunwen/sqlw-mysql/utils"
 )
 
 // DBInfo contains information of a database.
@@ -25,14 +26,12 @@ type TableInfo struct {
 	fkNames       map[string]int
 	primary       *IndexInfo  // nil if not exists
 	autoIncColumn *ColumnInfo // nil if not exists
-	camel         utils.CamelName
 }
 
 // ColumnInfo contains information of a table column.
 type ColumnInfo struct {
 	table  *TableInfo
 	column datasrc.Column
-	camel  utils.CamelName
 }
 
 // IndexInfo contains information of an index.
@@ -42,7 +41,6 @@ type IndexInfo struct {
 	columns   []*ColumnInfo
 	isPrimary bool
 	isUnique  bool
-	camel     utils.CamelName
 }
 
 // FKInfo contains information of a foreign key constraint.
@@ -52,7 +50,6 @@ type FKInfo struct {
 	columns        []*ColumnInfo
 	refTableName   string
 	refColumnNames []string
-	camel          utils.CamelName
 }
 
 // NewDBInfo extracts information from current database.
@@ -75,7 +72,6 @@ func NewDBInfo(loader *datasrc.Loader) (*DBInfo, error) {
 			columnNames: make(map[string]int),
 			indexNames:  make(map[string]int),
 			fkNames:     make(map[string]int),
-			camel:       utils.NewCamelName(tableName),
 		}
 
 		// Columns info
@@ -88,7 +84,6 @@ func NewDBInfo(loader *datasrc.Loader) (*DBInfo, error) {
 			column := &ColumnInfo{
 				table:  table,
 				column: col,
-				camel:  utils.NewCamelName(col.Name),
 			}
 			table.columns = append(table.columns, column)
 			table.columnNames[col.Name] = len(table.columns) - 1
@@ -120,7 +115,6 @@ func NewDBInfo(loader *datasrc.Loader) (*DBInfo, error) {
 				indexName: indexName,
 				isPrimary: isPrimary,
 				isUnique:  isUnique,
-				camel:     utils.NewCamelName(indexName),
 			}
 
 			for _, columnName := range columnNames {
@@ -153,7 +147,6 @@ func NewDBInfo(loader *datasrc.Loader) (*DBInfo, error) {
 				table:          table,
 				refTableName:   refTableName,
 				refColumnNames: refColumnNames,
-				camel:          utils.NewCamelName(fkName),
 			}
 
 			for _, columnName := range columnNames {
@@ -223,20 +216,12 @@ func (info *TableInfo) Valid() bool {
 	return info != nil
 }
 
-// UName is the upper camel case of the table name.
-func (info *TableInfo) UName() string {
+// CamelName is the camel case of the table name.
+func (info *TableInfo) CamelName() string {
 	if info == nil {
 		return ""
 	}
-	return info.camel.UName
-}
-
-// LName is the lower camel case of the table name.
-func (info *TableInfo) LName() string {
-	if info == nil {
-		return ""
-	}
-	return info.camel.LName
+	return xstrings.ToCamelCase(info.tableName)
 }
 
 // TableName returns the table name or "" if info is nil.
@@ -385,20 +370,12 @@ func (info *ColumnInfo) Valid() bool {
 	return info != nil
 }
 
-// UName is the upper camel case of the column name.
-func (info *ColumnInfo) UName() string {
+// CamelName is the camel case of the column name.
+func (info *ColumnInfo) CamelName() string {
 	if info == nil {
 		return ""
 	}
-	return info.camel.UName
-}
-
-// LName is the lower camel case of the column name.
-func (info *ColumnInfo) LName() string {
-	if info == nil {
-		return ""
-	}
-	return info.camel.LName
+	return xstrings.ToCamelCase(info.column.Name)
 }
 
 // Table returns the tabe. It returns nil if info is nil.
@@ -462,20 +439,12 @@ func (info *IndexInfo) Valid() bool {
 	return info != nil
 }
 
-// UName is upper camel case of the index name.
-func (info *IndexInfo) UName() string {
+// CamelName is camel case of the index name.
+func (info *IndexInfo) CamelName() string {
 	if info == nil {
 		return ""
 	}
-	return info.camel.UName
-}
-
-// LName is upper camel case of the index name.
-func (info *IndexInfo) LName() string {
-	if info == nil {
-		return ""
-	}
-	return info.camel.LName
+	return xstrings.ToCamelCase(info.indexName)
 }
 
 // IndexName returns the name of the index. It returns "" if info is nil.
@@ -523,20 +492,12 @@ func (info *FKInfo) Valid() bool {
 	return info != nil
 }
 
-// UName is upper camel case of the fk name.
-func (info *FKInfo) UName() string {
+// CamelName is camel case of the fk name.
+func (info *FKInfo) CamelName() string {
 	if info == nil {
 		return ""
 	}
-	return info.camel.UName
-}
-
-// LName is lower camel case of the fk name.
-func (info *FKInfo) LName() string {
-	if info == nil {
-		return ""
-	}
-	return info.camel.LName
+	return xstrings.ToCamelCase(info.fkName)
 }
 
 // FKName returns the name of foreign key. It returns "" if info is nil.

@@ -3,8 +3,9 @@ package directives
 import (
 	"testing"
 
-	"github.com/beevik/etree"
 	"github.com/huangjunwen/sqlw-mysql/infos"
+
+	"github.com/beevik/etree"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -2,6 +2,7 @@ package directives
 
 import (
 	"github.com/beevik/etree"
+
 	"github.com/huangjunwen/sqlw-mysql/datasrc"
 	"github.com/huangjunwen/sqlw-mysql/infos"
 )

@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/beevik/etree"
-	"github.com/huangjunwen/sqlw-mysql/datasrc"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/huangjunwen/sqlw-mysql/datasrc"
 )
 
 // <nt>9</nt> -> <t>0</t><t>1</t>....<t>8</t>
@@ -96,8 +97,7 @@ func TestStmtInfo(t *testing.T) {
 		stmt := (*StmtInfo)(nil)
 		assert.False(stmt.Valid())
 		assert.Equal("", stmt.StmtName())
-		assert.Equal("", stmt.UName())
-		assert.Equal("", stmt.LName())
+		assert.Equal("", stmt.CamelName())
 		assert.Equal("", stmt.Query())
 		assert.Equal("", stmt.StmtType())
 		assert.Equal("", stmt.Text())
@@ -113,8 +113,7 @@ func TestStmtInfo(t *testing.T) {
 
 		assert.True(stmt.Valid())
 		assert.Equal("One", stmt.StmtName())
-		assert.Equal("One", stmt.UName())
-		assert.Equal("one", stmt.LName())
+		assert.Equal("One", stmt.CamelName())
 		assert.Equal("SELECT 1", stmt.Query())
 		assert.Equal("SELECT", stmt.StmtType())
 		assert.Equal("SELECT 1", stmt.Text())
@@ -129,8 +128,7 @@ func TestStmtInfo(t *testing.T) {
 		assert.NoError(err)
 
 		assert.Equal("Directives", stmt.StmtName())
-		assert.Equal("Directives", stmt.UName())
-		assert.Equal("directives", stmt.LName())
+		assert.Equal("Directives", stmt.CamelName())
 		assert.Equal(`SELECT "012345678"`, stmt.Query())
 		assert.Equal("SELECT", stmt.StmtType())
 		assert.Equal(`SELECT "0.1.2.3.4.5.6.7.8."`, stmt.Text())

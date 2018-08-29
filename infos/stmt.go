@@ -6,8 +6,9 @@ import (
 	"unicode"
 
 	"github.com/beevik/etree"
+	"github.com/huandu/xstrings"
+
 	"github.com/huangjunwen/sqlw-mysql/datasrc"
-	"github.com/huangjunwen/sqlw-mysql/utils"
 )
 
 // StmtInfo contains information of a statement.
@@ -19,7 +20,6 @@ type StmtInfo struct {
 	stmtType        string        // 'SELECT'/'UPDATE'/'INSERT'/'DELETE'
 	queryResultCols []datasrc.Col // For SELECT stmt only
 	text            string        // Construct by TextFragment
-	camel           utils.CamelName
 
 	locals map[interface{}]interface{} // directive locals
 }
@@ -59,7 +59,6 @@ func NewStmtInfo(loader *datasrc.Loader, db *DBInfo, stmtElem *etree.Element) (*
 		if info.stmtName == "" {
 			return nil, fmt.Errorf("Missing 'name' attribute of <%s>", info.stmtType)
 		}
-		info.camel = utils.NewCamelName(info.stmtName)
 	}
 
 	// Convert to directives and Initialize.
@@ -198,20 +197,12 @@ func (info *StmtInfo) Valid() bool {
 	return info != nil
 }
 
-// UName is the upper camel case of stmt name.
-func (info *StmtInfo) UName() string {
+// CamelName is the camel case of stmt name.
+func (info *StmtInfo) CamelName() string {
 	if info == nil {
 		return ""
 	}
-	return info.camel.UName
-}
-
-// LName is the lower camel case of stmt name.
-func (info *StmtInfo) LName() string {
-	if info == nil {
-		return ""
-	}
-	return info.camel.LName
+	return xstrings.ToCamelCase(info.stmtName)
 }
 
 // StmtSrc returns the source xml of this statement. It returns "" if info is nil.
