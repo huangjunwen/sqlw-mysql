@@ -192,15 +192,19 @@ func newWildcardsInfo(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.Stmt
 			return nil, fmt.Errorf("Expect not inside wildcard markers.")
 		}
 
-		// Check result columns
+		// Check result columns. Should be the same as the original result columns (without markers).
 		resultCols = resultCols2
 		expectResultCols := stmt.QueryResultCols()
 		if len(expectResultCols) != len(resultCols) {
 			return nil, fmt.Errorf("Query result column number mismatch: %d!=%d.", len(expectResultCols), len(resultCols))
 		}
 		for i, resultCol := range resultCols {
-			if expectResultCols[i] != resultCol {
-				return nil, fmt.Errorf("Query result column[%d] mismatch: %#v!=%#v.", i, expectResultCols[i], resultCols)
+			expectResultCol := expectResultCols[i]
+			if resultCol.Name != expectResultCol.Name ||
+				resultCol.DataType != expectResultCol.DataType ||
+				resultCol.Nullable != expectResultCol.Nullable ||
+				resultCol.CT.ScanType() != expectResultCol.CT.ScanType() {
+				return nil, fmt.Errorf("Query result column[%d] mismatch: %#v!=%#v.", i, expectResultCol, resultCol)
 			}
 		}
 
