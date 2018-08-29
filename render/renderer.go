@@ -3,7 +3,6 @@ package render
 import (
 	"bytes"
 	"fmt"
-	"go/format"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"text/template"
 
 	"github.com/beevik/etree"
+
 	"github.com/huangjunwen/sqlw-mysql/datasrc"
 	"github.com/huangjunwen/sqlw-mysql/infos"
 )
@@ -19,19 +19,16 @@ import (
 // Renderer is used to render templates to final source code.
 type Renderer struct {
 	dsn       string
-	tmplDir   http.FileSystem
 	stmtDir   string
+	tmplDir   http.FileSystem
 	outputDir string
 	outputPkg string
 	whitelist map[string]struct{}
 	blacklist map[string]struct{}
 
-	loader      *datasrc.Loader
-	db          *infos.DBInfo
-	manifest    *Manifest
-	scanTypeMap ScanTypeMap
-	headnote    string
-	templates   map[string]*template.Template // name -> template
+	loader   *datasrc.Loader
+	db       *infos.DBInfo
+	manifest *Manifest
 }
 
 // Option is used to create Renderer.
@@ -41,14 +38,6 @@ type Option func(*Renderer) error
 func DSN(dsn string) Option {
 	return func(r *Renderer) error {
 		r.dsn = dsn
-		return nil
-	}
-}
-
-// TmplDir sets the template directory. (required)
-func TmplDir(tmplDir http.FileSystem) Option {
-	return func(r *Renderer) error {
-		r.tmplDir = tmplDir
 		return nil
 	}
 }
@@ -65,6 +54,14 @@ func StmtDir(stmtDir string) Option {
 			return fmt.Errorf("%+q is not a directory.", stmtDir)
 		}
 		r.stmtDir = stmtDir
+		return nil
+	}
+}
+
+// TmplDir sets the template directory. (required)
+func TmplDir(tmplDir http.FileSystem) Option {
+	return func(r *Renderer) error {
+		r.tmplDir = tmplDir
 		return nil
 	}
 }
@@ -155,9 +152,6 @@ func (r *Renderer) Run() error {
 	r.loader = nil
 	r.db = nil
 	r.manifest = nil
-	r.scanTypeMap = nil
-	r.headnote = ""
-	r.templates = make(map[string]*template.Template)
 
 	// Create loader.
 	var err error
@@ -174,53 +168,25 @@ func (r *Renderer) Run() error {
 	}
 
 	// Load manifest.
-	manifestFile, err := r.tmplDir.Open("manifest.json")
-	if err != nil {
-		return err
-	}
-	defer manifestFile.Close()
-
-	r.manifest, err = NewManifest(manifestFile)
+	r.manifest, err = LoadManifest(r.tmplDir, nil) // TODO: funcMap
 	if err != nil {
 		return err
 	}
 
-	// Load scanTypeMap.
-	scanTypeMapFile, err := r.tmplDir.Open(r.manifest.ScanTypeMap)
-	if err != nil {
-		return err
-	}
-
-	r.scanTypeMap, err = NewScanTypeMap(scanTypeMapFile)
-	if err != nil {
-		return err
-	}
-
-	// Load headnote.
-	if r.manifest.Headnote != "" {
-		headnoteFile, err := r.tmplDir.Open(r.manifest.Headnote)
-		if err != nil {
+	// Render per run templates.
+	for _, tmpls := range r.manifest.PerRun {
+		if err := r.render(tmpls, map[string]interface{}{
+			"PackageName": r.outputPkg,
+			"DB":          r.db,
+		}); err != nil {
 			return err
 		}
-		defer headnoteFile.Close()
-
-		headnoteContent, err := ioutil.ReadAll(headnoteFile)
-		if err != nil {
-			return err
-		}
-
-		r.headnote = string(headnoteContent)
-		if r.headnote != "" {
-			r.headnote += "\n" // Add a newline.
-		}
 	}
 
-	// Start renderring.
-
-	// Render tables.
+	// Render per table templates.
 	for _, table := range r.db.Tables() {
 
-		// Filter.
+		// Filter table.
 		if len(r.whitelist) != 0 {
 			if _, found := r.whitelist[table.TableName()]; !found {
 				continue
@@ -232,184 +198,101 @@ func (r *Renderer) Run() error {
 		}
 
 		// Render.
-		if err := r.render(
-			r.manifest.Templates.Table,
-			fmt.Sprintf("table_%s.go", table.TableName()),
-			map[string]interface{}{
+		for _, tmpls := range r.manifest.PerTable {
+			if err := r.render(tmpls, map[string]interface{}{
 				"PackageName": r.outputPkg,
 				"DB":          r.db,
 				"Table":       table,
 			}); err != nil {
-			return err
+				return err
+			}
 		}
+	}
 
-		if r.manifest.Templates.TableTest == "" {
+	if r.stmtDir == "" {
+		return nil
+	}
+
+	// Render per stmt xml templates.
+	stmtFileInfos, err := ioutil.ReadDir(r.stmtDir)
+	if err != nil {
+		return err
+	}
+
+	for _, stmtFileInfo := range stmtFileInfos {
+
+		// Skip directory and non xml files.
+		if stmtFileInfo.IsDir() {
+			continue
+		}
+		stmtFileName := stmtFileInfo.Name()
+		if !strings.HasSuffix(stmtFileName, ".xml") {
 			continue
 		}
 
-		// Render test.
-		if err := r.render(
-			r.manifest.Templates.TableTest,
-			fmt.Sprintf("table_%s_test.go", table.TableName()),
-			map[string]interface{}{
+		// Load xml.
+		doc := etree.NewDocument()
+		if err := doc.ReadFromFile(path.Join(r.stmtDir, stmtFileName)); err != nil {
+			return err
+		}
+
+		// Xml -> StmtInfo.
+		stmtInfos := []*infos.StmtInfo{}
+		for _, elem := range doc.ChildElements() {
+			stmtInfo, err := infos.NewStmtInfo(r.loader, r.db, elem)
+			if err != nil {
+				return err
+			}
+			stmtInfos = append(stmtInfos, stmtInfo)
+		}
+
+		// Render.
+		for _, tmpls := range r.manifest.PerStmtXML {
+			if err := r.render(tmpls, map[string]interface{}{
 				"PackageName": r.outputPkg,
 				"DB":          r.db,
-				"Table":       table,
+				"Stmts":       stmtInfos,
+				"StmtXMLName": strings.TrimSuffix(stmtFileName, ".xml"),
 			}); err != nil {
-			return err
-		}
-
-	}
-
-	// Render statements.
-	if r.stmtDir != "" {
-
-		stmtFileInfos, err := ioutil.ReadDir(r.stmtDir)
-		if err != nil {
-			return err
-		}
-		for _, stmtFileInfo := range stmtFileInfos {
-
-			// Skip directory and non-xml files.
-			if stmtFileInfo.IsDir() {
-				continue
-			}
-			stmtFileName := stmtFileInfo.Name()
-			if !strings.HasSuffix(stmtFileName, ".xml") {
-				continue
-			}
-
-			// Load xml.
-			doc := etree.NewDocument()
-			if err := doc.ReadFromFile(path.Join(r.stmtDir, stmtFileName)); err != nil {
 				return err
 			}
-
-			// Xml -> StmtInfo.
-			stmtInfos := []*infos.StmtInfo{}
-			for _, elem := range doc.ChildElements() {
-				stmtInfo, err := infos.NewStmtInfo(r.loader, r.db, elem)
-				if err != nil {
-					return err
-				}
-				stmtInfos = append(stmtInfos, stmtInfo)
-			}
-
-			// Render.
-			if err := r.render(
-				r.manifest.Templates.Stmt,
-				fmt.Sprintf("stmt_%s.go", stripSuffix(stmtFileName)),
-				map[string]interface{}{
-					"PackageName": r.outputPkg,
-					"DB":          r.db,
-					"Stmts":       stmtInfos,
-				}); err != nil {
-				return err
-			}
-
-			if r.manifest.Templates.StmtTest == "" {
-				continue
-			}
-
-			// Render test.
-			if err := r.render(
-				r.manifest.Templates.StmtTest,
-				fmt.Sprintf("stmt_%s_test.go", stripSuffix(stmtFileName)),
-				map[string]interface{}{
-					"PackageName": r.outputPkg,
-					"DB":          r.db,
-					"Stmts":       stmtInfos,
-				}); err != nil {
-				return err
-			}
-
 		}
 
-	}
-
-	// Render etc files.
-	for _, tmplName := range r.manifest.Templates.Etc {
-
-		if err := r.render(
-			tmplName,
-			fmt.Sprintf("etc_%s.go", stripSuffix(tmplName)),
-			map[string]interface{}{
-				"PackageName": r.outputPkg,
-				"DB":          r.db,
-			}); err != nil {
-			return err
-		}
-
-	}
-
-	return nil
-}
-
-func (r *Renderer) render(tmplName, fileName string, data interface{}) error {
-
-	tmpl := r.templates[tmplName]
-
-	// Not exists yet, load the template.
-	if tmpl == nil {
-		tmplFile, err := r.tmplDir.Open(tmplName)
-		if err != nil {
-			return err
-		}
-		defer tmplFile.Close()
-
-		tmplContent, err := ioutil.ReadAll(tmplFile)
-		if err != nil {
-			return err
-		}
-
-		tmpl, err = template.New(tmplName).Funcs(r.funcMap()).Parse(string(tmplContent))
-		if err != nil {
-			return err
-		}
-
-		r.templates[tmplName] = tmpl
-
-	}
-
-	// Open output file.
-	file, err := os.OpenFile(path.Join(r.outputDir, fileName), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	// Output headnote.
-	_, err = file.WriteString(r.headnote)
-	if err != nil {
-		return err
-	}
-
-	// Render.
-	buf := &bytes.Buffer{}
-	if err := tmpl.Execute(buf, data); err != nil {
-		return err
-	}
-
-	// Format.
-	fmtBuf, err := format.Source(buf.Bytes())
-	if err != nil {
-		return err
-	}
-
-	// Output.
-	_, err = file.Write(fmtBuf)
-	if err != nil {
-		return err
 	}
 
 	return nil
 
 }
 
-func stripSuffix(s string) string {
-	i := strings.LastIndexByte(s, '.')
-	if i < 0 {
-		return s
+func (r *Renderer) render(tmpls [2]*template.Template, data interface{}) error {
+
+	nameTmpl, contentTmpl := tmpls[0], tmpls[1]
+	nameBuf := bytes.Buffer{}
+	contentBuf := bytes.Buffer{}
+
+	// Render file name.
+	if err := nameTmpl.Execute(&nameBuf, data); err != nil {
+		return err
 	}
-	return s[:i]
+
+	// Render file content.
+	if err := contentTmpl.Execute(&contentBuf, data); err != nil {
+		return err
+	}
+
+	// Open file to write.
+	f, err := os.OpenFile(path.Join(r.outputDir, string(nameBuf.Bytes())), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// Write.
+	_, err = f.Write(contentBuf.Bytes())
+	if err != nil {
+		return err
+	}
+
+	return nil
+
 }

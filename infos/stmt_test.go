@@ -107,12 +107,12 @@ func TestStmtInfo(t *testing.T) {
 	{
 		// Simple select.
 		doc := etree.NewDocument()
-		assert.NoError(doc.ReadFromString(`<stmt name="One">SELECT 1</stmt>`))
+		assert.NoError(doc.ReadFromString(`<stmt name="one">SELECT 1</stmt>`))
 		stmt, err := NewStmtInfo(loader, db, doc.Root())
 		assert.NoError(err)
 
 		assert.True(stmt.Valid())
-		assert.Equal("One", stmt.StmtName())
+		assert.Equal("one", stmt.StmtName())
 		assert.Equal("One", stmt.CamelName())
 		assert.Equal("SELECT 1", stmt.Query())
 		assert.Equal("SELECT", stmt.StmtType())

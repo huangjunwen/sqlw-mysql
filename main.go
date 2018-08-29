@@ -35,7 +35,7 @@ var (
 func main() {
 	// Parse flags.
 	flag.StringVar(&dsn, "dsn", "", "(Required) Data source name. e.g. \"user:passwd@tcp(host:port)/db?parseTime=true\"")
-	flag.StringVar(&tmplDir, "tmpl", "", "(Optional) Custom templates directory.")
+	flag.StringVar(&tmplDir, "tmpl", "", "(Optional) Custom templates directory. Or use '@name' to use the named builtin template.")
 	flag.StringVar(&stmtDir, "stmt", "", "(Optional) Statement xmls directory.")
 	flag.StringVar(&outputDir, "out", "models", "(Optional) Output directory for generated code.")
 	flag.StringVar(&outputPkg, "pkg", "", "(Optional) Alternative package name of the generated code.")

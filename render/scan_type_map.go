@@ -14,8 +14,8 @@ import (
 // [1] is for nullable types.
 type ScanTypeMap map[string][2]string
 
-// NewScanTypeMap loads scan type map from io.Reader.
-func NewScanTypeMap(r io.Reader) (ScanTypeMap, error) {
+// LoadScanTypeMap loads scan type map from io.Reader.
+func LoadScanTypeMap(r io.Reader) (ScanTypeMap, error) {
 	ret := ScanTypeMap{}
 	decoder := json.NewDecoder(r)
 	if err := decoder.Decode(&ret); err != nil {
@@ -34,6 +34,10 @@ func NewScanTypeMap(r io.Reader) (ScanTypeMap, error) {
 }
 
 func (m ScanTypeMap) scanType(val interface{}, i int) (string, error) {
+
+	if m == nil {
+		return "", fmt.Errorf("ScanTypeMap is empty")
+	}
 
 	dataType, nullable := "", true
 
@@ -59,7 +63,7 @@ func (m ScanTypeMap) scanType(val interface{}, i int) (string, error) {
 		nullable = v.Nullable()
 
 	default:
-		return "", fmt.Errorf("ScanType: Expect table or query result column but got %T", val)
+		return "", fmt.Errorf("scanType: Expect table or query result column but got %T", val)
 	}
 
 	scanTypes, found := m[dataType]
