@@ -1,5 +1,9 @@
 package datasrc
 
+import (
+	"database/sql"
+)
+
 // Col represents basic column information.
 type Col struct {
 	// Name is the column name.
@@ -14,6 +18,9 @@ type Col struct {
 
 	// Nullable of the column.
 	Nullable bool
+
+	// CT is the raw column type.
+	CT *sql.ColumnType
 }
 
 // Column represents a table column.

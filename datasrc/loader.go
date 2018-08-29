@@ -234,6 +234,7 @@ func (loader *Loader) LoadCols(query string, args ...interface{}) ([]Col, error)
 			Name:     ct.Name(),
 			DataType: dataType,
 			Nullable: nullable,
+			CT:       ct,
 		})
 
 	}
