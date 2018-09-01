@@ -64,6 +64,8 @@ func TestExtColumnType(t *testing.T) {
 		" `bit_bit_16_y_y` BIT(10), " +
 		" `json_json_245_n_n` JSON NOT NULL, " +
 		" `json_json_245_y_n` JSON, " +
+		" `char_string_254_n_n` CHAR(100) NOT NULL, " +
+		" `char_string_254_y_n` CHAR(1), " +
 		" `varchar_string_253_n_n` VARCHAR(128) NOT NULL," +
 		" `varchar_string_253_y_n` VARCHAR(64)" +
 		")")
