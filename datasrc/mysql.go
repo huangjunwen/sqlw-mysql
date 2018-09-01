@@ -10,12 +10,12 @@ import (
 //   - ColumnType.Length is not supported yet (https://github.com/go-sql-driver/mysql/pull/667).
 //   - 'unsigned' or not can't be known if type ColumnType.ScanType returns NullInt64.
 // See:
-//   - github.com/go-sql-driver/mysql/fields.go:mysqlField
-//   - github.com/go-sql-driver/mysql/packets.go:mysqlConn.readColumns
+//   - https://github.com/go-sql-driver/mysql/blob/master/fields.go mysqlField
+//   - https://github.com/go-sql-driver/mysql/blob/master/packets.go mysqlConn.readColumns
 //   - https://dev.mysql.com/doc/internals/en/com-query-response.html#packet-Protocol::ColumnDefinition41
 type ExtColumnType struct {
 	sql.ColumnType
-	typ    uint8
+	tp     uint8
 	length uint32
 	flags  uint16
 }
@@ -50,7 +50,7 @@ func ExtractExtColumnTypes(rows *sql.Rows) ([]*ExtColumnType, error) {
 		mf := mfs.Index(i)
 		ret = append(ret, &ExtColumnType{
 			ColumnType: *ct,
-			typ:        uint8(mf.FieldByName("fieldType").Uint()),
+			tp:         uint8(mf.FieldByName("fieldType").Uint()),
 			length:     uint32(mf.FieldByName("length").Uint()),
 			flags:      uint16(mf.FieldByName("flags").Uint()),
 		})
@@ -59,9 +59,20 @@ func ExtractExtColumnTypes(rows *sql.Rows) ([]*ExtColumnType, error) {
 	return ret, nil
 }
 
-// Length returns the raw length.
-func (ect *ExtColumnType) Length() uint32 {
+// RawType returns the raw type code.
+// See: https://dev.mysql.com/doc/internals/en/com-query-response.html#packet-Protocol::ColumnType
+func (ect *ExtColumnType) RawType() uint8 {
+	return ect.tp
+}
+
+// RawLength returns the raw length.
+func (ect *ExtColumnType) RawLength() uint32 {
 	return ect.length
+}
+
+// RawFlags returns the raw flags.
+func (ect *ExtColumnType) RawFlags() uint16 {
+	return ect.flags
 }
 
 // Unsigned returns true if the column is unsigned.
@@ -95,10 +106,10 @@ func (ect *ExtColumnType) DataType() string {
 	unsigned := ect.Unsigned()
 	length := ect.length
 
-	// See: github.com/go-sql-driver/mysql/fields.go:mysqlField.scanType
-	switch ect.typ {
+	// See: https://github.com/go-sql-driver/mysql/blob/master/fields.go mysqlField.scanType
+	switch ect.tp {
 	// Int types.
-	case typTiny:
+	case tpTiny:
 		if unsigned {
 			return "uint8"
 		}
@@ -107,53 +118,53 @@ func (ect *ExtColumnType) DataType() string {
 		}
 		return "int8"
 
-	case typShort, typYear:
+	case tpShort, tpYear:
 		if unsigned {
 			return "uint16"
 		}
 		return "int16"
 
-	case typInt24, typLong:
+	case tpInt24, tpLong:
 		if unsigned {
 			return "uint32"
 		}
 		return "int32"
 
-	case typLongLong:
+	case tpLongLong:
 		if unsigned {
 			return "uint64"
 		}
 		return "int64"
 
 	// Float types.
-	case typFloat:
+	case tpFloat:
 		return "float32"
 
-	case typDouble:
+	case tpDouble:
 		return "float64"
 
 	// Time types.
-	case typDate, typNewDate, typTimestamp, typDateTime:
+	case tpDate, tpNewDate, tpTimestamp, tpDateTime:
 		return "time"
 
 	// String types.
-	case typDecimal, typNewDecimal:
+	case tpDecimal, tpNewDecimal:
 		return "decimal"
 
-	case typBit:
+	case tpBit:
 		return "bit"
 
-	case typEnum:
+	case tpEnum:
 		return "enum"
 
-	case typSet:
+	case tpSet:
 		return "set"
 
-	case typJSON:
+	case tpJSON:
 		return "json"
 
-	case typVarChar, typTinyBLOB, typMediumBLOB, typLongBLOB, typBLOB, typVarString,
-		typString, typGeometry, typTime:
+	case tpVarChar, tpTinyBLOB, tpMediumBLOB, tpLongBLOB, tpBLOB, tpVarString,
+		tpString, tpGeometry, tpTime:
 		return "string"
 
 	default:
@@ -164,34 +175,34 @@ func (ect *ExtColumnType) DataType() string {
 // Copy and modify from github.com/go-sql-driver/mysql/const.go
 // https://dev.mysql.com/doc/internals/en/com-query-response.html#packet-Protocol::ColumnType
 const (
-	typDecimal uint8 = iota
-	typTiny
-	typShort
-	typLong
-	typFloat
-	typDouble
-	typNULL
-	typTimestamp
-	typLongLong
-	typInt24
-	typDate
-	typTime
-	typDateTime
-	typYear
-	typNewDate
-	typVarChar
-	typBit
+	tpDecimal uint8 = iota
+	tpTiny
+	tpShort
+	tpLong
+	tpFloat
+	tpDouble
+	tpNULL
+	tpTimestamp
+	tpLongLong
+	tpInt24
+	tpDate
+	tpTime
+	tpDateTime
+	tpYear
+	tpNewDate
+	tpVarChar
+	tpBit
 )
 const (
-	typJSON uint8 = iota + 0xf5
-	typNewDecimal
-	typEnum
-	typSet
-	typTinyBLOB
-	typMediumBLOB
-	typLongBLOB
-	typBLOB
-	typVarString
-	typString
-	typGeometry
+	tpJSON uint8 = iota + 0xf5
+	tpNewDecimal
+	tpEnum
+	tpSet
+	tpTinyBLOB
+	tpMediumBLOB
+	tpLongBLOB
+	tpBLOB
+	tpVarString
+	tpString
+	tpGeometry
 )
