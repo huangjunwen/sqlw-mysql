@@ -30,8 +30,10 @@ type TableInfo struct {
 
 // ColumnInfo contains information of a table column.
 type ColumnInfo struct {
-	table  *TableInfo
-	column datasrc.Column
+	table      *TableInfo
+	col        datasrc.ExtColumnType
+	pos        int
+	hasDefault bool
 }
 
 // IndexInfo contains information of an index.
@@ -75,18 +77,20 @@ func NewDBInfo(loader *datasrc.Loader) (*DBInfo, error) {
 		}
 
 		// Columns info
-		cols, err := loader.LoadColumns(tableName)
+		cols, hasDefaults, err := loader.LoadTableColumns(tableName)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, col := range cols {
+		for i, col := range cols {
 			column := &ColumnInfo{
-				table:  table,
-				column: col,
+				table:      table,
+				col:        *col,
+				pos:        i,
+				hasDefault: hasDefaults[i],
 			}
 			table.columns = append(table.columns, column)
-			table.columnNames[col.Name] = len(table.columns) - 1
+			table.columnNames[col.Name()] = len(table.columns) - 1
 		}
 
 		// Auto increment column
@@ -375,7 +379,7 @@ func (info *ColumnInfo) CamelName() string {
 	if info == nil {
 		return ""
 	}
-	return xstrings.ToCamelCase(info.column.Name)
+	return xstrings.ToCamelCase(info.col.Name())
 }
 
 // Table returns the tabe. It returns nil if info is nil.
@@ -391,7 +395,7 @@ func (info *ColumnInfo) ColumnName() string {
 	if info == nil {
 		return ""
 	}
-	return info.column.Name
+	return info.col.Name()
 }
 
 // DataType returns the data type of the table column. It returns "" if info is nil.
@@ -399,7 +403,7 @@ func (info *ColumnInfo) DataType() string {
 	if info == nil {
 		return ""
 	}
-	return info.column.DataType
+	return info.col.DataType()
 }
 
 // Nullable returns the nullability of the table column. It returns true if info is nil.
@@ -407,7 +411,7 @@ func (info *ColumnInfo) Nullable() bool {
 	if info == nil {
 		return true
 	}
-	return info.column.Nullable
+	return info.col.Nullable()
 }
 
 // Pos returns the position of the column in table. It returns -1 if info is nil.
@@ -415,7 +419,7 @@ func (info *ColumnInfo) Pos() int {
 	if info == nil {
 		return -1
 	}
-	return info.column.Pos
+	return info.pos
 }
 
 // HasDefaultValue returns true if the table column has default value (including 'AUTO_INCREMENT'/'NOW()'). It returns false if info is nil.
@@ -423,15 +427,15 @@ func (info *ColumnInfo) HasDefaultValue() bool {
 	if info == nil {
 		return false
 	}
-	return info.column.HasDefaultValue
+	return info.hasDefault
 }
 
 // Col returns the underly datasrc.Column. It returns nil if info is nil.
-func (info *ColumnInfo) Col() *datasrc.Column {
+func (info *ColumnInfo) Col() *datasrc.ExtColumnType {
 	if info == nil {
 		return nil
 	}
-	return &info.column
+	return &info.col
 }
 
 // Valid returns true if info != nil.

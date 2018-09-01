@@ -16,10 +16,10 @@ type StmtInfo struct {
 	stmtSrc         string
 	stmtName        string
 	directives      []TerminalDirective
-	query           string        // Construct by QueryFragment
-	stmtType        string        // 'SELECT'/'UPDATE'/'INSERT'/'DELETE'
-	queryResultCols []datasrc.Col // For SELECT stmt only
-	text            string        // Construct by TextFragment
+	query           string                   // Construct by QueryFragment
+	stmtType        string                   // 'SELECT'/'UPDATE'/'INSERT'/'DELETE'
+	queryResultCols []*datasrc.ExtColumnType // For SELECT stmt only
+	text            string                   // Construct by TextFragment
 
 	locals map[interface{}]interface{} // directive locals
 }
@@ -105,7 +105,7 @@ func NewStmtInfo(loader *datasrc.Loader, db *DBInfo, stmtElem *etree.Element) (*
 
 	// Get query result columns if it is a SELECT.
 	if info.StmtType() == "SELECT" {
-		cols, err := loader.LoadCols(info.query)
+		cols, err := loader.LoadColumns(info.query)
 		if err != nil {
 			return nil, err
 		}
@@ -262,7 +262,7 @@ func (info *StmtInfo) NumQueryResultCol() int {
 }
 
 // QueryResultCols returns the result columns of the query if the statement is a SELECT.
-func (info *StmtInfo) QueryResultCols() []datasrc.Col {
+func (info *StmtInfo) QueryResultCols() []*datasrc.ExtColumnType {
 	if info == nil {
 		return nil
 	}

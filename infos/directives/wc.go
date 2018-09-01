@@ -133,7 +133,7 @@ func newWildcardsInfo(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.Stmt
 	}
 
 	// Query
-	resultCols, err := loader.LoadCols(query)
+	resultCols, err := loader.LoadColumns(query)
 	if err != nil {
 		return nil, err
 	}
@@ -143,11 +143,11 @@ func newWildcardsInfo(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.Stmt
 	{
 		curN := -1
 		curWildcardInfo := (*WildcardInfo)(nil)
-		resultCols2 := []datasrc.Col{}
+		resultCols2 := []*datasrc.ExtColumnType{}
 
 		for _, resultCol := range resultCols {
 
-			ok, n, start := parseMarker(resultCol.Name)
+			ok, n, start := parseMarker(resultCol.Name())
 			// Normal column.
 			if !ok {
 				resultCols2 = append(resultCols2, resultCol)
@@ -199,12 +199,10 @@ func newWildcardsInfo(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.Stmt
 			return nil, fmt.Errorf("Query result column number mismatch: %d!=%d.", len(expectResultCols), len(resultCols))
 		}
 		for i, resultCol := range resultCols {
+			// Compare values.
 			expectResultCol := expectResultCols[i]
-			if resultCol.Name != expectResultCol.Name ||
-				resultCol.DataType != expectResultCol.DataType ||
-				resultCol.Nullable != expectResultCol.Nullable ||
-				resultCol.CT.ScanType() != expectResultCol.CT.ScanType() {
-				return nil, fmt.Errorf("Query result column[%d] mismatch: %#v!=%#v.", i, expectResultCol, resultCol)
+			if *resultCol != *expectResultCol {
+				return nil, fmt.Errorf("Query result column[%d] mismatch: %#v!=%#v.", i, *expectResultCol, *resultCol)
 			}
 		}
 
