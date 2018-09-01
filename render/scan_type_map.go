@@ -42,21 +42,9 @@ func (m ScanTypeMap) scanType(val interface{}, i int) (string, error) {
 	dataType, nullable := "", true
 
 	switch v := val.(type) {
-	case datasrc.Col:
-		dataType = v.DataType
-		nullable = v.Nullable
-
-	case *datasrc.Col:
-		dataType = v.DataType
-		nullable = v.Nullable
-
-	case datasrc.Column:
-		dataType = v.DataType
-		nullable = v.Nullable
-
-	case *datasrc.Column:
-		dataType = v.DataType
-		nullable = v.Nullable
+	case *datasrc.ExtColumnType:
+		dataType = v.DataType()
+		nullable = v.Nullable()
 
 	case *infos.ColumnInfo:
 		dataType = v.DataType()
