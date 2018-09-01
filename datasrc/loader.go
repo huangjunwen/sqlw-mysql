@@ -4,10 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"reflect"
 	"time"
-
-	"github.com/go-sql-driver/mysql"
 )
 
 var (
@@ -63,34 +60,8 @@ func (loader *Loader) Conn() *sql.Conn {
 	return loader.conn
 }
 
-var (
-	// Copy from github.com/go-sql-driver/mysql/fields.go
-	scanTypeFloat32   = reflect.TypeOf(float32(0))
-	scanTypeFloat64   = reflect.TypeOf(float64(0))
-	scanTypeInt8      = reflect.TypeOf(int8(0))
-	scanTypeInt16     = reflect.TypeOf(int16(0))
-	scanTypeInt32     = reflect.TypeOf(int32(0))
-	scanTypeInt64     = reflect.TypeOf(int64(0))
-	scanTypeNullFloat = reflect.TypeOf(sql.NullFloat64{})
-	scanTypeNullInt   = reflect.TypeOf(sql.NullInt64{})
-	scanTypeNullTime  = reflect.TypeOf(mysql.NullTime{})
-	scanTypeUint8     = reflect.TypeOf(uint8(0))
-	scanTypeUint16    = reflect.TypeOf(uint16(0))
-	scanTypeUint32    = reflect.TypeOf(uint32(0))
-	scanTypeUint64    = reflect.TypeOf(uint64(0))
-	scanTypeRawBytes  = reflect.TypeOf(sql.RawBytes{})
-	scanTypeUnknown   = reflect.TypeOf(new(interface{}))
-)
-
-const (
-	// Copy from github.com/go-sql-driver/mysql/const.go
-	flagUnsigned = 1 << 5
-)
-
-// LoadCols loads result columns of a query.
-func (loader *Loader) LoadCols(query string, args ...interface{}) ([]Col, error) {
-
-	cols := []Col{}
+// LoadColumns loads result columns of a query.
+func (loader *Loader) LoadColumns(query string, args ...interface{}) ([]*ExtColumnType, error) {
 
 	rows, err := loader.conn.QueryContext(queryCtx(), query, args...)
 	if err != nil {
@@ -98,148 +69,8 @@ func (loader *Loader) LoadCols(query string, args ...interface{}) ([]Col, error)
 	}
 	defer rows.Close()
 
-	cts, err := rows.ColumnTypes()
-	if err != nil {
-		return nil, err
-	}
-
-	for i, ct := range cts {
-
-		scanType := ct.ScanType()
-		databaseTypeName := ct.DatabaseTypeName()
-		nullable, ok := ct.Nullable()
-		if !ok {
-			panic(fmt.Errorf("ColumnType.Nullable() not supported in MySQL driver ?!"))
-		}
-
-		// XXX: From current driver's public API some information is lost:
-		// - Column type's length is not support yet (see https://github.com/go-sql-driver/mysql/pull/667)
-		// - Length and unsigned can't be determine if type is NullXXX (e.g. NullInt64, NullFloat64)
-		// So do some tricks to read them from private fields.
-		//
-		// XXX: In general reading data from private field is not a good idea, but i think here
-		// is ok since we're only using them to generate code
-		field := reflect.
-			ValueOf(rows).          // *sql.Rows
-			Elem().                 // sql.Rows
-			FieldByName("rowsi").   // driver.Rows
-			Elem().                 // *mysql.mysqlRows
-			Elem().                 // mysql.mysqlRows
-			FieldByName("rs").      // mysql.resultSet
-			FieldByName("columns"). // []mysql.mysqlField
-			Index(i)                // mysql.mysqlField
-
-		length := field.FieldByName("length").Uint()
-		flags := field.FieldByName("flags").Uint()
-		unsigned := (flags & flagUnsigned) != 0
-
-		bad := func() {
-			panic(fmt.Errorf("Unsupported column type: ScanType=%#v, DatabaseTypeName=%+q", scanType, databaseTypeName))
-		}
-
-		// Translate to DataType.
-		dataType := ""
-		switch scanType {
-		// Float types
-		case scanTypeFloat32:
-			dataType = "float32"
-		case scanTypeFloat64:
-			dataType = "float64"
-		case scanTypeNullFloat:
-			switch databaseTypeName {
-			case "FLOAT":
-				dataType = "float32"
-			case "DOUBLE":
-				dataType = "float64"
-			default:
-				bad()
-			}
-
-		// Int types, includeing bool type
-		case scanTypeInt8:
-			if length == 1 {
-				// Special case for bool
-				dataType = "bool"
-			} else {
-				dataType = "int8"
-			}
-		case scanTypeInt16:
-			dataType = "int16"
-		case scanTypeInt32:
-			dataType = "int32"
-		case scanTypeInt64:
-			dataType = "int64"
-		case scanTypeUint8:
-			dataType = "uint8"
-		case scanTypeUint16:
-			dataType = "uint16"
-		case scanTypeUint32:
-			dataType = "uint32"
-		case scanTypeUint64:
-			dataType = "uint64"
-		case scanTypeNullInt:
-			switch databaseTypeName {
-			case "TINYINT":
-				if unsigned {
-					dataType = "uint8"
-				} else {
-					if length == 1 {
-						dataType = "bool"
-					} else {
-						dataType = "int8"
-					}
-				}
-			case "SMALLINT", "YEAR":
-				if unsigned {
-					dataType = "uint16"
-				} else {
-					dataType = "int16"
-				}
-			case "MEDIUMINT", "INT":
-				if unsigned {
-					dataType = "uint32"
-				} else {
-					dataType = "int32"
-				}
-			case "BIGINT":
-				if unsigned {
-					dataType = "uint64"
-				} else {
-					dataType = "int64"
-				}
-			default:
-				bad()
-			}
-
-		// Time types
-		case scanTypeNullTime:
-			dataType = "time"
-
-			// String types
-		case scanTypeRawBytes:
-			switch databaseTypeName {
-			case "BIT":
-				dataType = "bit"
-			case "JSON":
-				dataType = "json"
-			default:
-				dataType = "string"
-			}
-
-		default:
-			bad()
-		}
-
-		cols = append(cols, Col{
-			Name:     ct.Name(),
-			DataType: dataType,
-			Nullable: nullable,
-			CT:       ct,
-		})
-
-	}
-
-	return cols, nil
+	// NOTE: Only return columns of the first result set.
+	return ExtractExtColumnTypes(rows)
 
 }
 
@@ -292,22 +123,22 @@ func (loader *Loader) LoadTableNames() ([]string, error) {
 	return tableNames, nil
 }
 
-// LoadColumns returns all columns of the named table.
-func (loader *Loader) LoadColumns(tableName string) ([]Column, error) {
-
-	columns := []Column{}
+// LoadTableColumns returns all columns of the named table.
+func (loader *Loader) LoadTableColumns(tableName string) ([]*ExtColumnType, []bool, error) {
 
 	dbName, err := loader.LoadDBName()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	cols, err := loader.LoadCols("SELECT * FROM `" + tableName + "`")
+	ects, err := loader.LoadColumns("SELECT * FROM `" + tableName + "`")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	for i, col := range cols {
+	hasDefault := []bool{}
+
+	for _, ect := range ects {
 
 		row := loader.conn.QueryRowContext(queryCtx(), `
 		SELECT
@@ -316,23 +147,17 @@ func (loader *Loader) LoadColumns(tableName string) ([]Column, error) {
 			INFORMATION_SCHEMA.COLUMNS
 		WHERE
 			TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=?
-		`, dbName, tableName, col.Name)
+		`, dbName, tableName, ect.Name())
 
 		defaultVal := sql.NullString{}
 		if err := row.Scan(&defaultVal); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		columns = append(columns, Column{
-			Col:             col,
-			Pos:             i,
-			HasDefaultValue: defaultVal.Valid,
-		})
-
+		hasDefault = append(hasDefault, defaultVal.Valid)
 	}
 
-	return columns, nil
-
+	return ects, hasDefault, nil
 }
 
 // LoadAutoIncColumn returns the auto_increment column name of the named table or "" if not exists.

@@ -1,78 +1,88 @@
 package datasrc_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLoadCols(t *testing.T) {
+func TestLoadColumns(t *testing.T) {
 
 	assert := assert.New(t)
 
-	exec("CREATE DATABASE load_cols")
-	exec("USE load_cols")
+	exec("CREATE DATABASE load_columns")
+	exec("USE load_columns")
 	defer func() {
-		exec("DROP DATABASE load_cols")
+		exec("DROP DATABASE load_columns")
 	}()
 
+	// Field format "<name>_<data type>_<tp>_<nullable>_<unsigned>"
 	exec("" +
 		"CREATE TABLE `types` (" +
-		" `float_z_float32` FLOAT NOT NULL, " +
-		" `float_n_float32` FLOAT, " +
-		" `double_z_float64` DOUBLE NOT NULL, " +
-		" `double_n_float64` DOUBLE, " +
-		" `bool_z_bool` BOOL NOT NULL, " +
-		" `bool_n_bool` BOOL, " +
-		" `tiny_z_int8` TINYINT NOT NULL, " +
-		" `tiny_n_int8` TINYINT, " +
-		" `utiny_z_uint8` TINYINT UNSIGNED NOT NULL, " +
-		" `utiny_n_uint8` TINYINT UNSIGNED, " +
-		" `small_z_int16` SMALLINT NOT NULL, " +
-		" `small_n_int16` SMALLINT, " +
-		" `usmall_z_uint16` SMALLINT UNSIGNED NOT NULL, " +
-		" `usmall_n_uint16` SMALLINT UNSIGNED, " +
-		" `medium_z_int32` MEDIUMINT NOT NULL, " +
-		" `medium_n_int32` MEDIUMINT, " +
-		" `umedium_z_uint32` MEDIUMINT UNSIGNED NOT NULL, " +
-		" `umedium_n_uint32` MEDIUMINT UNSIGNED, " +
-		" `int_z_int32` INT NOT NULL, " +
-		" `int_n_int32` INT, " +
-		" `uint_z_uint32` INT UNSIGNED NOT NULL, " +
-		" `uint_n_uint32` INT UNSIGNED, " +
-		" `big_z_int64` BIGINT NOT NULL, " +
-		" `big_n_int64` BIGINT, " +
-		" `ubig_z_uint64` BIGINT UNSIGNED NOT NULL, " +
-		" `ubig_n_uint64` BIGINT UNSIGNED, " +
-		" `datetime_z_time` DATETIME NOT NULL, " +
-		" `datetime_n_time` DATETIME, " +
-		" `date_z_time` DATE NOT NULL, " +
-		" `date_n_time` DATE, " +
-		" `timestamp_z_time` TIMESTAMP NOT NULL DEFAULT NOW(), " +
-		" `timestamp_n_time` TIMESTAMP NULL DEFAULT NOW(), " + // XXX
-		" `bit_z_bit` BIT(10) NOT NULL, " +
-		" `bit_n_bit` BIT(10), " +
-		" `json_z_json` JSON NOT NULL, " +
-		" `json_n_json` JSON, " +
-		" `char_z_string` CHAR(32) NOT NULL, " +
-		" `char_n_string` CHAR(32), " +
-		" `vchar_z_string` VARCHAR(32) NOT NULL, " +
-		" `vchar_n_string` VARCHAR(32), " +
-		" `text_z_string` TEXT NOT NULL, " +
-		" `text_n_string` TEXT, " +
-		" `blob_z_string` BLOB NOT NULL, " +
-		" `blob_n_string` BLOB " +
+		" `bool_bool_1_n_n` BOOL NOT NULL, " +
+		" `bool_bool_1_y_n` BOOL, " +
+		" `tiny_int8_1_n_n` TINYINT NOT NULL, " +
+		" `tiny_int8_1_y_n` TINYINT, " +
+		" `tiny_uint8_1_n_y` TINYINT UNSIGNED NOT NULL, " +
+		" `tiny_uint8_1_y_y` TINYINT UNSIGNED, " +
+		" `small_int16_2_n_n` SMALLINT NOT NULL, " +
+		" `small_int16_2_y_n` SMALLINT, " +
+		" `small_uint16_2_n_y` SMALLINT UNSIGNED NOT NULL, " +
+		" `small_uint16_2_y_y` SMALLINT UNSIGNED, " +
+		" `year_uint16_13_n_y` YEAR NOT NULL, " + // XXX: YEAR is always unsigned
+		" `year_uint16_13_y_y` YEAR, " +
+		" `medium_int32_9_n_n` MEDIUMINT NOT NULL, " +
+		" `medium_int32_9_y_n` MEDIUMINT, " +
+		" `medium_uint32_9_n_y` MEDIUMINT UNSIGNED NOT NULL, " +
+		" `medium_uint32_9_y_y` MEDIUMINT UNSIGNED, " +
+		" `int_int32_3_n_n` INT NOT NULL, " +
+		" `int_int32_3_y_n` INT, " +
+		" `int_uint32_3_n_y` INT UNSIGNED NOT NULL, " +
+		" `int_uint32_3_y_y` INT UNSIGNED , " +
+		" `big_int64_8_n_n` BIGINT NOT NULL, " +
+		" `big_int64_8_y_n` BIGINT, " +
+		" `big_uint64_8_n_y` BIGINT UNSIGNED NOT NULL, " +
+		" `big_uint64_8_y_y` BIGINT UNSIGNED, " +
+		" `float_float32_4_n_n` FLOAT NOT NULL, " +
+		" `float_float32_4_y_n` FLOAT, " +
+		" `double_float64_5_n_n` DOUBLE NOT NULL, " +
+		" `double_float64_5_y_n` DOUBLE, " +
+		" `date_time_10_n_n` DATE NOT NULL, " +
+		" `date_time_10_y_n` DATE, " +
+		" `timestamp_time_7_n_n` TIMESTAMP NOT NULL DEFAULT NOW(), " +
+		" `timestamp_time_7_y_n` TIMESTAMP NULL DEFAULT NOW(), " +
+		" `datetime_time_12_n_n` DATETIME NOT NULL, " +
+		" `datetime_time_12_y_n` DATETIME, " +
+		" `decimal_decimal_246_n_n` DECIMAL(9, 2) NOT NULL," +
+		" `decimal_decimal_246_y_n` DECIMAL(10, 3)," +
+		" `bit_bit_16_n_y` BIT(10) NOT NULL, " + // XXX: bit is always unsigned
+		" `bit_bit_16_y_y` BIT(10), " +
+		" `json_json_245_n_n` JSON NOT NULL, " +
+		" `json_json_245_y_n` JSON, " +
+		" `char_string_254_n_n` CHAR(100) NOT NULL, " +
+		" `char_string_254_y_n` CHAR(1), " +
+		" `varchar_string_253_n_n` VARCHAR(128) NOT NULL," +
+		" `varchar_string_253_y_n` VARCHAR(64)" +
 		")")
 
-	cols, err := loader.LoadCols("SELECT * FROM `types`")
+	cols, err := loader.LoadColumns("SELECT * FROM types")
 	assert.NoError(err)
-	for _, col := range cols {
-		parts := strings.Split(col.Name, "_")
-		assert.Equal(parts[1] == "n", col.Nullable)
-		assert.Equal(parts[2], col.DataType)
-	}
 
+	for _, col := range cols {
+		name := col.Name()
+		parts := strings.Split(name, "_")
+
+		assert.Equal(parts[1], col.DataType(), "%+q: data type mismatch", name)
+
+		tp, _ := strconv.Atoi(parts[2])
+		assert.Equal(tp, int(col.RawType()), "%+q: raw type mismatch", name)
+
+		assert.Equal(parts[3] == "y", col.Nullable(), "%+q: nullable mismatch", name)
+
+		assert.Equal(parts[4] == "y", col.Unsigned(), "%+q: unsigned mismatch", name)
+	}
 }
 
 func TestLoadDBName(t *testing.T) {
@@ -121,14 +131,14 @@ func TestLoadTableNames(t *testing.T) {
 
 }
 
-func TestLoadColumns(t *testing.T) {
+func TestLoadTableColumns(t *testing.T) {
 
 	assert := assert.New(t)
 
-	exec("CREATE DATABASE load_columns")
-	exec("USE load_columns")
+	exec("CREATE DATABASE load_table_columns")
+	exec("USE load_table_columns")
 	defer func() {
-		exec("DROP DATABASE load_columns")
+		exec("DROP DATABASE load_table_columns")
 	}()
 
 	exec("" +
@@ -152,14 +162,15 @@ func TestLoadColumns(t *testing.T) {
 		" PRIMARY KEY (`int_n_dft`)" +
 		")")
 
-	columns, err := loader.LoadColumns("dft")
+	cols, hasDefault, err := loader.LoadTableColumns("dft")
 	assert.NoError(err)
-	for _, column := range columns {
-		parts := strings.Split(column.Name, "_")
+
+	for i, col := range cols {
+		parts := strings.Split(col.Name(), "_")
 		if parts[2] == "dft" {
-			assert.True(column.HasDefaultValue)
+			assert.True(hasDefault[i])
 		} else {
-			assert.False(column.HasDefaultValue)
+			assert.False(hasDefault[i])
 		}
 	}
 
