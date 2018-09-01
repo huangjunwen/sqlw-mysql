@@ -154,17 +154,11 @@ func (ect *ExtColumnType) DataType() string {
 	case tpBit:
 		return "bit"
 
-	case tpEnum:
-		return "enum"
-
-	case tpSet:
-		return "set"
-
 	case tpJSON:
 		return "json"
 
 	case tpVarChar, tpTinyBLOB, tpMediumBLOB, tpLongBLOB, tpBLOB, tpVarString,
-		tpString, tpGeometry, tpTime:
+		tpString, tpGeometry, tpTime, tpEnum, tpSet:
 		return "string"
 
 	default:
