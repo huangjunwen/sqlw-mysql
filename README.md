@@ -413,6 +413,7 @@ A `manifest.json` contains lists of templates to render and other customizable i
 
 `manifest["perRun"]` list templates to render once per run. `manifest["perTable"]` list templates to render once per database table. `manifest["perStmtXML"]` list templates to render once per statement xml file. 
 
+`sqlw-mysql` templates can use functions provided by [sprig](https://github.com/Masterminds/sprig/), checkout [func.go](https://github.com/huangjunwen/sqlw-mysql/blob/master/render/func.go) to see the full list of supported functions.
 
 
 ### Default template
