@@ -1,6 +1,6 @@
 # SQL wrapper code generator for MySQL [![Go Report Card](https://goreportcard.com/badge/github.com/huangjunwen/sqlw-mysql)](https://goreportcard.com/report/github.com/huangjunwen/sqlw-mysql)
 
-`sqlw-mysql` is a CLI tool to generate go wrapper code for your MySQL database and queries.
+`sqlw-mysql` is a CLI tool to generate go wrapper code (or any text source) for your MySQL database and queries.
 
 ## Table of Contents
 
@@ -15,8 +15,9 @@
     - [Text directive](#text-directive)
     - [Wildcard directive](#wildcard-directive)
       - [How wildcard directive works](#how-wildcard-directive-works)
-- [Code template](#code-template)
+- [Template](#template)
   - [Default template](#default-template)
+  - [Graphviz template](#graphviz-template)
 - [Command line options](#command-line-options)
 - [Motivation](#motivation)
 - [Licence](#licence)
@@ -33,8 +34,7 @@ $ go get -u github.com/huangjunwen/sqlw-mysql
 - Database first, `sqlw-mysql` generate wrapper code for your database tables.
 - Use XML as DSL to describe query statements, `sqlw-mysql` generate wrapper code for them.
 - Should be work for all kinds of queries, from simple ones to complex ones.
-- Genreated code should be simple, easy to understand, and convenient enough to use.
-- Highly customizable code template.
+- Highly customizable template. Can be used to generate wrapper code but also any text source.
 - Extensible DSL (through directives).
 
 ## Quickstart
@@ -351,51 +351,47 @@ And if you only selects a single column (or a few columns) like:
 
 Then the wildcard directive is ignored since you're not selecting all columns of the table.
 
-## Code template
+## Template
 
-`sqlw-mysql` itself only provides information extracted from database/DSL. Most features are in fact implemented in code template. A code template is a directory looks like:
+`sqlw-mysql` itself only provides information extracted from database/DSL. Most features are in fact implemented in template. A template is a directory looks like:
 
 ``` bash
 $ tree default
 default
-├── group.tmpl
-├── headnote
-├── intf.tmpl
+├── interface.go.tmpl
 ├── manifest.json
-├── meta.tmpl
-├── meta_test.tmpl
+├── meta.go.tmpl
+├── meta_test.go.tmpl
 ├── scan_type_map.json
-├── stmt.tmpl
-├── table.tmpl
-└── test.tmpl
+├── stmt_{{.StmtXMLName}}.go.tmpl
+├── table_{{.Table.TableName}}.go.tmpl
+└── util.go.tmpl
 ```
 
-A `manifest.json` list all files that the code template consist of:
+A `manifest.json` contains lists of templates to render and other customizable information:
 
 ``` json
 {
-  "scan_type_map": "scan_type_map.json",
-  "headnote": "headnote",
-  "tmpl": {
-    "table": "table.tmpl",
-    "stmt": "stmt.tmpl",
-    "etc": [
-      "intf.tmpl",
-      "meta.tmpl",
-      "group.tmpl",
-      "test.tmpl",
-      "meta_test.tmpl"
-    ]
-  }
+  "scanTypeMap": "scan_type_map.json",
+  "perRun": [
+    "interface.go.tmpl",
+    "meta.go.tmpl",
+    "util.go.tmpl",
+    "meta_test.go.tmpl"
+  ],
+  "perTable": [
+    "table_{{.Table.TableName}}.go.tmpl"
+  ],
+  "perStmtXML": [
+    "stmt_{{.StmtXMLName}}.go.tmpl"
+  ]
 }
 ```
 
-`manifest["scan_type_map"]` is used to map database type (key) to go scan type (value, `value[0]` is for *NOT* nullable type and `value[1]` is for nullable type):
+`manifest["scanTypeMap"]` is used to map database type (key) to go scan type (value, `value[0]` is for *NOT* nullable type and `value[1]` is for nullable type):
 
 ``` json
 {
-  "float32":   ["float32", "null.Float32"],
-  "float64":   ["float64", "null.Float64"],
   "bool":      ["bool", "null.Bool"],
   "int8":      ["int8", "null.Int8"],
   "uint8":     ["uint8", "null.Uint8"],
@@ -405,20 +401,23 @@ A `manifest.json` list all files that the code template consist of:
   "uint32":    ["uint32", "null.Uint32"],
   "int64":     ["int64", "null.Int64"],
   "uint64":    ["uint64", "null.Uint64"],
+  "float32":   ["float32", "null.Float32"],
+  "float64":   ["float64", "null.Float64"],
   "time":      ["time.Time", "null.Time"],
+  "decimal":   ["string", "null.String"],
   "bit":       ["string", "null.String"],
   "json":      ["string", "null.String"],
   "string":    ["string", "null.String"]
 }
 ```
 
-`manifest["tmpl"]` list file templates: `manifest["tmpl"]["table"]` is used to render each table found in database; `manifest["tmpl"]["stmt"]` is used to render each statement XML found; `manifest["tmpl"]["etc"]` contains extra file templates.
+`manifest["perRun"]` list templates to render once per run. `manifest["perTable"]` list templates to render once per database table. `manifest["perStmtXML"]` list templates to render once per statement xml file. 
 
 
 
 ### Default template
 
-If no custom code template specified, or `-stmt @default` is given, then the default template is used.
+If no custom template specified, or `-tmpl @default` is given, then the default template is used.
 
 Genreated code depends on these external libraries:
 - [sqlx](https://github.com/jmoiron/sqlx).
@@ -464,6 +463,9 @@ An example of `use_template`:
 
 Then the generated statement will be treated as a go template and will be renderred before normal execution. This is useful when you have many `WHERE` condtions combination.
 
+### Graphviz template
+
+`sqlw-mysql` can be used to generate other text source as well. For example running with `-tmpl @graphviz` a `.dot` file will be generated containing tables and their relationships which can be convert to a diagram.
 
 ## Command line options
 
@@ -481,10 +483,9 @@ Usage of sqlw-mysql:
   -stmt string
     	(Optional) Statement xmls directory.
   -tmpl string
-    	(Optional) Custom templates directory.
+    	(Optional) Custom templates directory. Or use '@name' to use the named builtin template.
   -whitelist value
     	(Optional) Comma separated table names to render.
-
 ```
 
 ## Motivation
