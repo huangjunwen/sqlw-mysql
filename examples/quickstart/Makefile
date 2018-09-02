@@ -1,6 +1,9 @@
 
 gen:
-	sqlw-mysql -dsn "root:123456@tcp(localhost:16033)/dev?parseTime=true" -stmt ./stmts
+	sqlw-mysql -dsn "root:123456@tcp(localhost:16033)/dev?parseTime=true" -stmt ./stmts && gofmt -w models/*.go
+
+gendot:
+	sqlw-mysql -dsn "root:123456@tcp(localhost:16033)/dev?parseTime=true" -tmpl @graphviz && dot -Tpng models/db.dot > models/db.png
 
 # use Ctrl+\ to stop it.
 mysqld:

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+
 	"github.com/huangjunwen/sqlw-mysql/examples/quickstart/models"
 )
 
@@ -55,14 +56,6 @@ func main() {
 		// Delete.
 		if err := u.Delete(ctx, tx); err != nil {
 			log.Fatal(err)
-		}
-
-		slice, err := models.EmployeeSliceBySuperiorId(ctx, tx, 0, 3, false)
-		if err != nil {
-			log.Fatal(err)
-		}
-		for _, empl := range slice {
-			log.Printf("Employee %+q is subordinate of %d\n", empl.EmployeeSn, 3)
 		}
 
 		// Select
