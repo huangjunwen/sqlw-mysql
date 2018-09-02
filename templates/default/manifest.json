@@ -1,15 +1,15 @@
 {
-  "scan_type_map": "scan_type_map.json",
-  "headnote": "headnote",
-  "tmpl": {
-    "table": "table.tmpl",
-    "stmt": "stmt.tmpl",
-    "etc": [
-      "intf.tmpl",
-      "meta.tmpl",
-      "group.tmpl",
-      "test.tmpl",
-      "meta_test.tmpl"
-    ]
-  }
+  "scanTypeMap": "scan_type_map.json",
+  "perRun": [
+    "interface.go.tmpl",
+    "meta.go.tmpl",
+    "util.go.tmpl",
+    "meta_test.go.tmpl"
+  ],
+  "perTable": [
+    "table_{{.Table.TableName}}.go.tmpl"
+  ],
+  "perStmtXML": [
+    "stmt_{{.StmtXMLName}}.go.tmpl"
+  ]
 }
