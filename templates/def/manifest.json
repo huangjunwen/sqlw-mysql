@@ -10,5 +10,6 @@
     "table_{{.Table.TableName}}.go.tmpl"
   ],
   "perStmtXML": [
+    "stmt_{{.StmtXMLName}}.go.tmpl"
   ]
 }

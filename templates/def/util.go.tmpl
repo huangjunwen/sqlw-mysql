@@ -19,7 +19,7 @@ func groupBy(src Slicer, selector func(interface{}) TableRowWithPrimary, trs Sli
     item := src.nxItem(i)
     tr := selector(item)
     
-    // Skip null rows.
+    // Skip rows with null value.
     if !tr.Valid() {
       continue
     }
