@@ -476,46 +476,6 @@ KAAAAA==
 `,
 	},
 
-	"/templates/xxx/manifest.json": {
-		local:   "templates/xxx/manifest.json",
-		size:    137,
-		modtime: 1535534479,
-		compressed: `
-H4sIAAAAAAAC/6rmUlBQKkgtCirNU7JSiOZSUFBQUKqoqNBLz9cryS3IUeJSUIjVgSoKSUzKSUUoq67W
-A4tASL/E3NTaWrg+Hdxq4ktSi0tQLOCq5QIEAAD//0n/qoKJAAAA
-`,
-	},
-
-	"/templates/xxx/xxx.go.tmpl": {
-		local:   "templates/xxx/xxx.go.tmpl",
-		size:    45,
-		modtime: 1535534643,
-		compressed: `
-H4sIAAAAAAAC/ypITM5OTE9VqK5W0AuAsP0Sc1MVamu5uKqrFYqTE/NCKgtSFQxAIoAAAAD//0mqPMgt
-AAAA
-`,
-	},
-
-	"/templates/xxx/{{.Table.TableName}}.go.tmpl": {
-		local:   "templates/xxx/{{.Table.TableName}}.go.tmpl",
-		size:    80,
-		modtime: 1535534387,
-		compressed: `
-H4sIAAAAAAAC/ypITM5OTE9VqK5W0AuAsP0Sc1MVamu5uPT1wcIhiUk5qRASJoUi45yYm5oDkwEEAAD/
-/9OS2I1QAAAA
-`,
-	},
-
-	"/templates/xxx/{{.Table.TableName}}_test.go.tmpl": {
-		local:   "templates/xxx/{{.Table.TableName}}_test.go.tmpl",
-		size:    54,
-		modtime: 1535534459,
-		compressed: `
-H4sIAAAAAAAC/ypITM5OTE9VqK5W0AuAsP0Sc1MVamu5uDJzC/KLShQ0uBQU9PUVlEpSi0sy89KVuDS5
-AAEAAP//bxvRLDYAAAA=
-`,
-	},
-
 	"/": {
 		isDir: true,
 		local: "",
@@ -534,10 +494,5 @@ AAEAAP//bxvRLDYAAAA=
 	"/templates/graphviz": {
 		isDir: true,
 		local: "templates/graphviz",
-	},
-
-	"/templates/xxx": {
-		isDir: true,
-		local: "templates/xxx",
 	},
 }
