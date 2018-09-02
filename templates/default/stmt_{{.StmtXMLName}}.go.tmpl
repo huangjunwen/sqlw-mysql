@@ -18,7 +18,6 @@ import (
 {{ range .Stmts }}
 
   {{ $stmtName := .StmtName }}
-  {{ $camelName := camelcase .StmtName }}
   {{ $type := .StmtType }}
   {{ $args := extractArgsInfo . }}
   {{ $vars := extractVarsInfo . }}
@@ -32,7 +31,7 @@ import (
 
   {{ if eq $type "SELECT"}}
 
-    {{ $resultName := ternary ($wcs.Wildcard 0).Table.CamelName (printf "%sResult" $camelName) $flagSingleWildcard }}
+    {{ $resultName := ternary ($wcs.Wildcard 0).Table.CamelName (printf "%sResult" $stmtName) $flagSingleWildcard }}
 
     {{ if not $flagSingleWildcard }}
 
@@ -156,15 +155,15 @@ import (
     {{ end }}
       
     /*
-{{ $camelName }} is created from:
+{{ $stmtName }} is created from:
 
   {{ .StmtSrc | replace "\n" "\n  " }}
     */
-    func {{ $camelName }}(ctx context.Context, q Queryer{{ range $args.Args }}, {{ .ArgName }} {{ .ArgType }}{{ end }}) ({{ if $flagReturnOne }}*{{ $resultName }}{{ else }}{{ $resultName }}Slice{{ end }}, error) {
+    func {{ $stmtName }}(ctx context.Context, q Queryer{{ range $args.Args }}, {{ .ArgName }} {{ .ArgType }}{{ end }}) ({{ if $flagReturnOne }}*{{ $resultName }}{{ else }}{{ $resultName }}Slice{{ end }}, error) {
       // NOTE: Add a nested block to allow identifier shadowing.
       {
         // Build query.
-        query, args, err := nxBuild{{ $camelName }}Query(map[string]interface{}{
+        query, args, err := nxBuild{{ $stmtName }}Query(map[string]interface{}{
           {{ range $args.Args -}}
             "{{ .ArgName }}": {{ .ArgName }},
           {{ end -}}
@@ -241,15 +240,15 @@ import (
   {{ else }}
 
     /*
-    {{ $camelName }} is created from:
+    {{ $stmtName }} is created from:
 
       {{ replace .StmtSrc "\n" "\n  " }}
     */
-    func {{ $camelName }}(ctx context.Context, e Execer{{ range $args.Args }}, {{ .ArgName }} {{ .ArgType }}{{ end }}) error {
+    func {{ $stmtName }}(ctx context.Context, e Execer{{ range $args.Args }}, {{ .ArgName }} {{ .ArgType }}{{ end }}) error {
       // NOTE: Add a nested block to allow identifier shadowing.
       {
         // Build query.
-        query, args, err := nxBuild{{ $camelName }}Query(map[string]interface{}{
+        query, args, err := nxBuild{{ $stmtName }}Query(map[string]interface{}{
           {{ range $args.Args -}}
             "{{ .ArgName }}": {{ .ArgName }},
           {{ end -}}
@@ -268,24 +267,24 @@ import (
 
   var (
     {{ if $flagUseTemplate -}}
-      nx{{ $camelName }}QueryTmpl = template.Must(template.New("{{ $camelName }}").Parse({{ printf "%+q" .Text }}))
+      nx{{ $stmtName }}QueryTmpl = template.Must(template.New("{{ $stmtName }}").Parse({{ printf "%+q" .Text }}))
     {{ else -}}
-      nx{{ $camelName }}Query = {{ printf "%+q" .Text }}
+      nx{{ $stmtName }}Query = {{ printf "%+q" .Text }}
     {{ end -}}
   )
 
-  func nxBuild{{ $camelName }}Query(data map[string]interface{}) (string, []interface{}, error) {
+  func nxBuild{{ $stmtName }}Query(data map[string]interface{}) (string, []interface{}, error) {
 
     {{ if $flagUseTemplate }}
       // Template -> named query.
       buf := bytes.Buffer{}
-      if err := nx{{ $camelName }}QueryTmpl.Execute(&buf, data); err != nil {
+      if err := nx{{ $stmtName }}QueryTmpl.Execute(&buf, data); err != nil {
         return "", nil, err
       }
       namedQuery := buf.String()
     {{ else }}
       // Named query.
-      namedQuery := nx{{ $camelName }}Query
+      namedQuery := nx{{ $stmtName }}Query
     {{ end }}
 
     // Named query -> query.
