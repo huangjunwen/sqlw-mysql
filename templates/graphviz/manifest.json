@@ -1,0 +1,5 @@
+{
+  "perRun": [
+    "db.dot.tmpl"
+  ]
+}
