@@ -1,0 +1,14 @@
+{
+  "scanTypeMap": "scan_type_map.json",
+  "perRun": [
+    "interface.go.tmpl",
+    "meta.go.tmpl",
+    "util.go.tmpl",
+    "meta_test.go.tmpl"
+  ],
+  "perTable": [
+    "table_{{.Table.TableName}}.go.tmpl"
+  ],
+  "perStmtXML": [
+  ]
+}

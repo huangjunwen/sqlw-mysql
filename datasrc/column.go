@@ -98,7 +98,6 @@ func (ect *ExtColumnType) Nullable() bool {
 //   - time
 //   - decimal
 //   - bit
-//   - enum/set
 //   - json
 //   - string
 // It returns "" for unknown type.
