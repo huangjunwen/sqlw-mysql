@@ -466,7 +466,9 @@ Then the generated statement will be treated as a go template and will be render
 
 ### Graphviz template
 
-`sqlw-mysql` can be used to generate other text source as well. For example running with `-tmpl @graphviz` a `.dot` file will be generated containing tables and their relationships which can be convert to a diagram.
+`sqlw-mysql` can be used to generate other text source as well. For example running with `-tmpl @graphviz` a `.dot` file will be generated containing tables and their relationships, which can be convert to a diagram like this:
+
+![db.png](https://raw.githubusercontent.com/huangjunwen/sqlw-mysql/master/examples/quickstart/models/db.png)
 
 ## Command line options
 
