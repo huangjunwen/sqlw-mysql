@@ -499,7 +499,7 @@ This tool is inspired by [xo](https://github.com/xo/xo). I like the code generat
 - Can't handle quries like: `SELECT user.*, employee.* FROM user LEFT JOIN employee ON employee.user_id=user.id`. Since it use `CREATE VIEW...` to obtain result columns information but `CREATE VIEW...` does not permit duplicate column names: both `user` and `employee` have `id`. As a result, you have to write aliases for all columns if you want to select them all.
 - Some MySQL related issue: [Issue #123](https://github.com/xo/xo/issues/123)
 
-I have also looked into some ORMs. Many people (including me) like ORM because it's convenient. But this is true only when your requirement fits into ORM's design model. Beyond that, often you have to hand write SQL too.
+I have also looked into some ORMs. Many people (including me) like ORM because it's convenient. But this is true only when your requirement fits into ORM's design model. Beyond that, even not very complex sql is not supported, e.g. OUTER JOIN.
 
 And `sqlw-mysql` is my attempt to add some convenient to xo's approach.
 
