@@ -1,4 +1,4 @@
-# SQL wrapper code generator for MySQL [![Go Report Card](https://goreportcard.com/badge/github.com/huangjunwen/sqlw-mysql)](https://goreportcard.com/report/github.com/huangjunwen/sqlw-mysql)
+# SQL wrapper code generator for MySQL [![Go Report Card](https://goreportcard.com/badge/github.com/huangjunwen/sqlw-mysql)](https://goreportcard.com/report/github.com/huangjunwen/sqlw-mysql) [![Build Status](https://travis-ci.org/huangjunwen/sqlw-mysql.svg?branch=master)](https://travis-ci.org/huangjunwen/sqlw-mysql)
 
 `sqlw-mysql` is a CLI tool to generate go wrapper code (or any text source) for your MySQL database and queries.
 
@@ -23,6 +23,10 @@
 - [Licence](#licence)
 
 ## Install
+
+Download pre build binaries in https://github.com/huangjunwen/sqlw-mysql/releases
+
+Or build from source.
 
 ``` bash
 $ go get -u github.com/huangjunwen/sqlw-mysql
