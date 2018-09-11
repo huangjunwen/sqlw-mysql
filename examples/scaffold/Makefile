@@ -34,6 +34,6 @@ mysql_server:
 		docker run --rm --name "$$MYSQL_NAME" \
 		-p 127.0.0.1:$$MYSQL_PORT:3306 \
 		-v $(shell pwd)/initdb:/docker-entrypoint-initdb.d \
-    -e MYSQL_ROOT_PASSWORD=$$MYSQL_ROOT_PASSWORD \
-    -e MYSQL_DATABASE=$$MYSQL_DATABASE \
+		-e MYSQL_ROOT_PASSWORD=$$MYSQL_ROOT_PASSWORD \
+		-e MYSQL_DATABASE=$$MYSQL_DATABASE \
 		mysql:$$MYSQL_VER
