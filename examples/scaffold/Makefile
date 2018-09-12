@@ -5,7 +5,8 @@ gen: mysql_server_started
 	@source env.sh && sqlw-mysql \
 		-dsn "root:$$MYSQL_ROOT_PASSWORD@tcp(localhost:$$MYSQL_PORT)/$$MYSQL_DATABASE?parseTime=true" \
 		-stmt stmts \
-		-out models
+		-out models && \
+		gofmt -w models/*.go
 
 # Generate png.
 gen_png: gen_dot
