@@ -37,3 +37,6 @@ mysql_server:
 		-e MYSQL_ROOT_PASSWORD=$$MYSQL_ROOT_PASSWORD \
 		-e MYSQL_DATABASE=$$MYSQL_DATABASE \
 		mysql:$$MYSQL_VER
+
+clean:
+	@rm models/*
