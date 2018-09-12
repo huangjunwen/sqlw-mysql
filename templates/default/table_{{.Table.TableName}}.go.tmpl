@@ -183,7 +183,7 @@ func (tr *{{ $camelName }}) InsertEx(ctx context.Context, e Execer, modifier str
 
   {{ if $refIndex.Valid -}}
 
-    // {{ $refTable.CamelName }}By{{ .CamelName }} returns the associated {{ $refTable.CamelName }} by `{{ .FKName }}` foreign key.
+    // {{ $refTable.CamelName }}By{{ .CamelName }} returns the associated {{ $refTable.CamelName }} by `{{ .FKName }}` foreign key: ({{ range $i, $col := .Columns }}{{ if ne $i 0 }},{{ end }}`{{ $col.ColumnName }}`{{ end }}).
     func (tr *{{ $camelName }}) {{ $refTable.CamelName }}By{{ .CamelName }}(ctx context.Context, q Queryer, lock bool) (*{{ $refTable.CamelName }}, error) {
 
       {{ range .Columns -}}
