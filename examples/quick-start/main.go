@@ -8,14 +8,14 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	"github.com/huangjunwen/sqlw-mysql/examples/quickstart/models"
+	"github.com/huangjunwen/sqlw-mysql/examples/quick-start/models"
 )
 
 func main() {
 	ctx := context.Background()
 
 	// Open db.
-	db, err := sql.Open("mysql", "root:123456@tcp(localhost:16033)/dev?parseTime=true")
+	db, err := sql.Open("mysql", "root:123456@tcp(localhost:13307)/quickstart?parseTime=true")
 	if err != nil {
 		log.Fatal(err)
 	}
