@@ -6,6 +6,7 @@
 
 - [Install](#install)
 - [Design/Goals/Features](#designgoalsfeatures)
+- [Motivation](#motivation)
 - [Quickstart](#quickstart)
 - [Statement XML](#statement-xml)
   - [Directives](#directives)
@@ -19,7 +20,6 @@
   - [Default template](#default-template)
   - [Graphviz template](#graphviz-template)
 - [Command line options](#command-line-options)
-- [Motivation](#motivation)
 - [Licence](#licence)
 
 ## Install
@@ -40,6 +40,10 @@ $ go get -u github.com/huangjunwen/sqlw-mysql
 - Should be work for all kinds of queries, from simple ones to complex ones.
 - Highly customizable template. Can be used to generate wrapper code but also any text source.
 - Extensible DSL (through directives).
+
+## Motivation
+
+See my blog post for this project (in Chinese): [写了一个 MySQL 数据表和查询的 go 代码生成器](https://huangjunwen.github.io/post/2018/sqlw-mysql/)
 
 ## Quickstart
 
@@ -495,17 +499,7 @@ Usage of sqlw-mysql:
     	(Optional) Comma separated table names to render.
 ```
 
-## Motivation
 
-This tool is inspired by [xo](https://github.com/xo/xo). I like the code generation and database first approach. And quries are run in real database, this can reduce many errors for hand written SQL. But some issues arise when I start to use it:
-
-- The DSL is quite limited, you need to hand write every bit of the SQL. Sometimes this can be quite inconvenient.
-- Can't handle quries like: `SELECT user.*, employee.* FROM user LEFT JOIN employee ON employee.user_id=user.id`. Since it use `CREATE VIEW...` to obtain result columns information but `CREATE VIEW...` does not permit duplicate column names: both `user` and `employee` have `id`. As a result, you have to write aliases for all columns if you want to select them all.
-- Some MySQL related issue: [Issue #123](https://github.com/xo/xo/issues/123)
-
-I have also looked into some ORMs. Many people (including me) like ORM because it's convenient. But this is true only when your requirement fits into ORM's design model. Beyond that, even not very complex sql is not supported, e.g. OUTER JOIN.
-
-And `sqlw-mysql` is my attempt to add some convenient to xo's approach.
 
 ## Licence
 
