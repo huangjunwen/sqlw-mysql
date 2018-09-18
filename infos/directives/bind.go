@@ -11,7 +11,7 @@ import (
 
 type bindDirective struct {
 	bindName string
-	v        string
+	val      string
 }
 
 var (
@@ -19,25 +19,41 @@ var (
 )
 
 func (d *bindDirective) Initialize(loader *datasrc.Loader, db *infos.DBInfo, stmt *infos.StmtInfo, tok etree.Token) error {
+	argsInfo := ExtractArgsInfo(stmt)
+	if argsInfo == nil {
+		return fmt.Errorf("Can't use <bind> if you have not declare <arg>")
+	}
+
 	elem := tok.(*etree.Element)
 	d.bindName = elem.SelectAttrValue("name", "")
 	if d.bindName == "" {
 		return fmt.Errorf("Missing 'name' attribute in <bind> directive")
 	}
-	d.v = elem.Text()
+
+	found := false
+	for _, argInfo := range argsInfo.Args() {
+		if argInfo.ArgName() == d.bindName {
+			found = true
+		}
+	}
+	if !found {
+		return fmt.Errorf("No <arg> with name=%+q", d.bindName)
+	}
+
+	d.val = elem.Text()
 	return nil
 }
 
 func (d *bindDirective) Expand() ([]etree.Token, error) {
 	// <bind name="xxx" /> -> <repl by=":xxx">NULL</repl>
-	// <bind name="xxx">v</bind> -> <repl by=":xxx">v</repl>
+	// <bind name="xxx">val</bind> -> <repl by=":xxx">val</repl>
 	elem := etree.NewElement("repl")
 	elem.CreateAttr("by", ":"+d.bindName)
-	v := "NULL"
-	if d.v != "" {
-		v = d.v
+	val := "NULL"
+	if d.val != "" {
+		val = d.val
 	}
-	elem.SetText(v)
+	elem.SetText(val)
 	return []etree.Token{elem}, nil
 }
 
