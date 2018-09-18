@@ -13,6 +13,7 @@
     - [Arg directive](#arg-directive)
     - [Vars directive](#vars-directive)
     - [Replace directive](#replace-directive)
+    - [Bind directive](#bind-directive)
     - [Text directive](#text-directive)
     - [Wildcard directive](#wildcard-directive)
       - [How wildcard directive works](#how-wildcard-directive-works)
@@ -194,14 +195,14 @@ Another example, if you want to find subordinates of some employees (e.g. `one2m
   FROM
     employee AS superior LEFT JOIN employee AS subordinate ON subordinate.superior_id=superior.id
   WHERE
-    superior.id IN (<r by=":id">1</r>)
+    superior.id IN (<b name="id"/>)
 </stmt>
 ```
 
 Brief explanation about new directives:
 - `<a>` specifies an argument of the generated function.
 - `<v>` specifies arbitary variables that the template can use. `in_query="1"` tells the template that the SQL use `IN` operator.
-- `<r>` can replace arbitary statement text.
+- `<b>` argument binding.
 
 _See [Directives](#directives) for detail._
 
@@ -305,6 +306,27 @@ Declare arbitary key/value pairs (XML attributes) for template to use. Always re
 - Second pass result: `":id"`
 
 Returns the inner text for the first pass and returns the value in `by` attribute for the second pass.
+
+### Bind directive
+
+- Name: `<bind>`/`<b>`
+- Example: `<b name="id" />` or `<b name="limit">10</b>`
+- First pass result: `"NULL"` or inner text of `<b>` element.
+- Second pass result: `":id"`
+
+`<b name="xxx" />` is equivalent to `<r by=":xxx">NULL</r>` and `<b name="xxx">val</b>` is equivalent to `<r by=":xxx">val</r>`. And the bind name must be an argument name.
+
+NOTE: `NULL` is not allowed in some clause in MySQL. For example: 
+
+```sql
+SELECT * FROM user LIMIT NULL  -- Invalid
+```
+
+Thus if you want to bind an argument in the `LIMIT` clause, you have to write a number explicitly:
+
+```sql
+LIMIT <b name="limit">1</b>
+```
 
 #### Text directive
 
@@ -455,18 +477,18 @@ An example of `use_template`:
     user
   WHERE
     <t>{{ if ne .id 0 }}</t>
-      id=<r by=":id">1</r> AND
+      id=<b name="id"/> AND
     <t>{{ end }}</t>
 
     <t>{{ if ne (len .name) 0 }}</t>
-      name=<r by=":name">"hjw"</r> AND
+      name=<b name="name"/> AND
     <t>{{ end }}</t>
 
     <t>{{ if not .birthday.IsZero }}</t>
-      birthday=<r by=":birthday">NOW()</r> AND
+      birthday=<b name="birthday"/> AND
     <t>{{ end }}</t>
     1
-  LIMIT <r by=":limit">10</r>
+  LIMIT <b name="limit">10</b>
 </stmt>
 ```
 
