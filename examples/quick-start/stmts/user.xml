@@ -17,7 +17,7 @@
   FROM
     employee AS superior LEFT JOIN employee AS subordinate ON subordinate.superior_id=superior.id
   WHERE
-    superior.id IN (<r by=":id">1</r>)
+    superior.id IN (<b name="id"/>)
 </stmt>
 
 
@@ -33,16 +33,16 @@
     user
   WHERE
     <t>{{ if ne .id 0 }}</t>
-      id=<r by=":id">1</r> AND
+      id=<b name="id"/> AND
     <t>{{ end }}</t>
 
     <t>{{ if ne (len .name) 0 }}</t>
-      name=<r by=":name">"hjw"</r> AND
+      name=<b name="name"/> AND
     <t>{{ end }}</t>
 
     <t>{{ if not .birthday.IsZero }}</t>
-      birthday=<r by=":birthday">NOW()</r> AND
+      birthday=<b name="birthday"/> AND
     <t>{{ end }}</t>
     1
-  LIMIT <r by=":limit">10</r>
+  LIMIT <b name="limit">10</b>
 </stmt>
