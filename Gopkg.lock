@@ -104,12 +104,6 @@
   version = "v0.3.6"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/jmoiron/sqlx"
-  packages = [".","reflectx"]
-  revision = "82935fac6c1a317907c8f43ed3f7f85ea844a78b"
-
-[[projects]]
   name = "github.com/konsorten/go-windows-terminal-sequences"
   packages = ["."]
   revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
@@ -187,21 +181,9 @@
   revision = "ae0ab99deb4dc413a2b4bd6c8bdd0eb67f1e4d06"
   version = "v1.2.0"
 
-[[projects]]
-  name = "gopkg.in/DATA-DOG/go-sqlmock.v1"
-  packages = ["."]
-  revision = "d76b18b42f285b792bf985118980ce9eacea9d10"
-  version = "v1.3.0"
-
-[[projects]]
-  name = "gopkg.in/volatiletech/null.v6"
-  packages = [".","convert"]
-  revision = "0bef4e07ae1b27a2a4efa23bbb3006c8c3d2e01d"
-  version = "v6.4"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f8b9f28c975445ebea0775f1eee11413a4f42fa905b7e8412ffc7c57f0309b81"
+  inputs-digest = "fe350511c0f32687cce88c20a38f17c10a5b9954cec1726f3e57e7ef79407fce"
   solver-name = "gps-cdcl"
   solver-version = 1
