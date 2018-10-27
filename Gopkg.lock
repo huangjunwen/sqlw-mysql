@@ -16,8 +16,8 @@
 [[projects]]
   name = "github.com/Masterminds/sprig"
   packages = ["."]
-  revision = "6b2a58267f6a8b1dc8e2eb5519b984008fa85e8c"
-  version = "v2.15.0"
+  revision = "15f9564e7e9cf0da02a48e0d25f12a7b83559aa6"
+  version = "v2.16.0"
 
 [[projects]]
   name = "github.com/Microsoft/go-winio"
@@ -53,7 +53,7 @@
   branch = "master"
   name = "github.com/containerd/continuity"
   packages = ["pathdriver"]
-  revision = "f44b615e492bdfb371aae2f76ec694d9da1db537"
+  revision = "c220ac4f01b8a301edcb9c9c05d7600249138cfa"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -88,8 +88,14 @@
 [[projects]]
   name = "github.com/huandu/xstrings"
   packages = ["."]
-  revision = "55ae428c2ac4f74d7430952ef528631e656ac92c"
-  version = "v1.1.0"
+  revision = "f02667b379e2fb5916c3cda2cf31e0eb885d79f8"
+  version = "v1.2.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/huangjunwen/tstsvc"
+  packages = ["tstsvc","tstsvc/mysql"]
+  revision = "87625d163579100a6a56121f82819fd1aef56040"
 
 [[projects]]
   name = "github.com/imdario/mergo"
@@ -101,7 +107,13 @@
   branch = "master"
   name = "github.com/jmoiron/sqlx"
   packages = [".","reflectx"]
-  revision = "0dae4fefe7c0e190f7b5a78dac28a1c82cc8d849"
+  revision = "82935fac6c1a317907c8f43ed3f7f85ea844a78b"
+
+[[projects]]
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
+  version = "v1.0.1"
 
 [[projects]]
   name = "github.com/opencontainers/go-digest"
@@ -123,7 +135,7 @@
 
 [[projects]]
   name = "github.com/ory/dockertest"
-  packages = ["docker","docker/opts","docker/pkg/archive","docker/pkg/fileutils","docker/pkg/homedir","docker/pkg/idtools","docker/pkg/ioutils","docker/pkg/jsonmessage","docker/pkg/longpath","docker/pkg/mount","docker/pkg/pools","docker/pkg/stdcopy","docker/pkg/system","docker/pkg/term","docker/pkg/term/windows","docker/types","docker/types/blkiodev","docker/types/container","docker/types/filters","docker/types/mount","docker/types/network","docker/types/registry","docker/types/strslice","docker/types/versions"]
+  packages = [".","docker","docker/opts","docker/pkg/archive","docker/pkg/fileutils","docker/pkg/homedir","docker/pkg/idtools","docker/pkg/ioutils","docker/pkg/jsonmessage","docker/pkg/longpath","docker/pkg/mount","docker/pkg/pools","docker/pkg/stdcopy","docker/pkg/system","docker/pkg/term","docker/pkg/term/windows","docker/types","docker/types/blkiodev","docker/types/container","docker/types/filters","docker/types/mount","docker/types/network","docker/types/registry","docker/types/strslice","docker/types/versions"]
   revision = "9f1141b78507d23603f6be530587664ebb63a8d2"
   version = "v3.3.2"
 
@@ -142,8 +154,8 @@
 [[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "3e01752db0189b9157070a0e1668a620f9a85da2"
-  version = "v1.0.6"
+  revision = "ad15b42461921f1fb3529b058c6786c6a45d5162"
+  version = "v1.1.1"
 
 [[projects]]
   name = "github.com/stretchr/testify"
@@ -155,37 +167,31 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["pbkdf2","scrypt","ssh/terminal"]
-  revision = "182538f80094b6a8efaade63a8fd8e0d9d5843dd"
+  revision = "e84da0312774c21d64ee2317962ef669b27ffb41"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context"]
-  revision = "8a410e7b638dca158bf9e766925842f6651ff828"
+  revision = "9b4f9f5ad5197c79fd623a3638e70d8b26cef344"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix","windows"]
-  revision = "fa5fdf94c78965f1aa8423f0cc50b8b8d728b05a"
+  revision = "95b1ffbd15a57cc5abb3f04402b9e8ec0016a52c"
 
 [[projects]]
   name = "google.golang.org/appengine"
   packages = ["cloudsql"]
-  revision = "b1f26356af11148e710935ed1ac8a7f5702c7612"
-  version = "v1.1.0"
+  revision = "ae0ab99deb4dc413a2b4bd6c8bdd0eb67f1e4d06"
+  version = "v1.2.0"
 
 [[projects]]
   name = "gopkg.in/DATA-DOG/go-sqlmock.v1"
   packages = ["."]
   revision = "d76b18b42f285b792bf985118980ce9eacea9d10"
   version = "v1.3.0"
-
-[[projects]]
-  name = "gopkg.in/ory-am/dockertest.v3"
-  packages = ["."]
-  revision = "9f1141b78507d23603f6be530587664ebb63a8d2"
-  version = "v3.3.2"
 
 [[projects]]
   name = "gopkg.in/volatiletech/null.v6"
@@ -196,6 +202,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5a37e359216a36c28f9e968d4d67033c3f3f99e94e220dbe5fe505d7c78147ce"
+  inputs-digest = "f8b9f28c975445ebea0775f1eee11413a4f42fa905b7e8412ffc7c57f0309b81"
   solver-name = "gps-cdcl"
   solver-version = 1
