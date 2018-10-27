@@ -6,11 +6,15 @@ import (
 	"testing"
 
 	"github.com/huangjunwen/sqlw-mysql/datasrc"
-	"github.com/huangjunwen/sqlw-mysql/testutils"
+
+	"github.com/huangjunwen/tstsvc/tstsvc"
+	"github.com/huangjunwen/tstsvc/tstsvc/mysql"
+	"github.com/ory/dockertest"
 )
 
 var (
-	loader *datasrc.Loader
+	mysqlSvc *dockertest.Resource
+	loader   *datasrc.Loader
 )
 
 func exec(query string, args ...interface{}) {
@@ -21,20 +25,21 @@ func exec(query string, args ...interface{}) {
 }
 
 func TestMain(m *testing.M) {
-
-	err := testutils.Chain{
-		testutils.WithTstMySQLServer,
-		testutils.WithTstLoader,
-	}.Then(func(ctx context.Context) error {
-
-		loader = testutils.TstLoader(ctx)
-		m.Run()
-		return nil
-
-	})(context.Background())
-
-	if err != nil {
-		log.Fatal(err)
+	log.Printf("Starting testing MySQL server.\n")
+	var err error
+	opts := &tstmysql.Options{
+		HostPort: tstsvc.RandPort(),
 	}
+	mysqlSvc, err = opts.Run(nil)
+	if err != nil {
+		log.Panic(err)
+	}
+	defer mysqlSvc.Close()
+	log.Printf("Testing MySQL server up.\n")
 
+	loader, err = datasrc.NewLoader(opts.DSN())
+	if err != nil {
+		log.Panic(err)
+	}
+	defer loader.Close()
 }

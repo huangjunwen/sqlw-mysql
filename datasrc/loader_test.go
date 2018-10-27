@@ -1,4 +1,4 @@
-package datasrc_test
+package datasrc
 
 import (
 	"strconv"
