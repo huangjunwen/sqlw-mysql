@@ -5,14 +5,11 @@ import (
 	"log"
 	"testing"
 
-	"github.com/huangjunwen/tstsvc/tstsvc"
 	"github.com/huangjunwen/tstsvc/tstsvc/mysql"
-	"github.com/ory/dockertest"
 )
 
 var (
-	mysqlSvc *dockertest.Resource
-	loader   *Loader
+	loader *Loader
 )
 
 func exec(query string, args ...interface{}) {
@@ -24,20 +21,18 @@ func exec(query string, args ...interface{}) {
 
 func TestMain(m *testing.M) {
 	log.Printf("Starting testing MySQL server.\n")
-	var err error
-	opts := &tstmysql.Options{
-		HostPort: tstsvc.RandPort(),
-	}
-	mysqlSvc, err = opts.Run(nil)
+	mysqlSvc, dsn, err := tstmysql.Run()
 	if err != nil {
 		log.Panic(err)
 	}
 	defer mysqlSvc.Close()
 	log.Printf("Testing MySQL server up.\n")
 
-	loader, err = NewLoader(opts.DSN())
+	loader, err = NewLoader(dsn)
 	if err != nil {
 		log.Panic(err)
 	}
 	defer loader.Close()
+
+	m.Run()
 }
