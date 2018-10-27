@@ -95,7 +95,7 @@
   branch = "master"
   name = "github.com/huangjunwen/tstsvc"
   packages = ["tstsvc","tstsvc/mysql"]
-  revision = "87625d163579100a6a56121f82819fd1aef56040"
+  revision = "ee5a0b54d78bdfefddc3302a7f3c5ae0015b63b0"
 
 [[projects]]
   name = "github.com/imdario/mergo"
@@ -184,6 +184,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fe350511c0f32687cce88c20a38f17c10a5b9954cec1726f3e57e7ef79407fce"
+  inputs-digest = "67b7b07c8229ab3a2ac70d7f8c9d0acbcb5d112b582740631ea986566e047f1d"
   solver-name = "gps-cdcl"
   solver-version = 1

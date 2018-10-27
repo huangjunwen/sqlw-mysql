@@ -42,9 +42,5 @@
   name = "github.com/huangjunwen/tstsvc"
 
 [[constraint]]
-  name = "github.com/ory/dockertest"
-  version = "3.3.2"
-
-[[constraint]]
   name = "github.com/stretchr/testify"
   version = "1.2.2"
