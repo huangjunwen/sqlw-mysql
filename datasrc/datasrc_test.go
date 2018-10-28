@@ -21,11 +21,12 @@ func exec(query string, args ...interface{}) {
 
 func TestMain(m *testing.M) {
 	log.Printf("Starting testing MySQL server.\n")
-	mysqlSvc, dsn, err := tstmysql.Run()
+	mysqlSvc, err := tstmysql.Default.Run()
 	if err != nil {
 		log.Panic(err)
 	}
 	defer mysqlSvc.Close()
+	dsn := tstmysql.Default.DSN(mysqlSvc)
 	log.Printf("Testing MySQL server up.\n")
 
 	loader, err = NewLoader(dsn)

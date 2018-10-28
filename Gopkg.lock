@@ -53,7 +53,7 @@
   branch = "master"
   name = "github.com/containerd/continuity"
   packages = ["pathdriver"]
-  revision = "c220ac4f01b8a301edcb9c9c05d7600249138cfa"
+  revision = "bea7585dbfac2847dbf49a6b8e7738a36c09bc75"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -95,7 +95,7 @@
   branch = "master"
   name = "github.com/huangjunwen/tstsvc"
   packages = ["tstsvc","tstsvc/mysql"]
-  revision = "ee5a0b54d78bdfefddc3302a7f3c5ae0015b63b0"
+  revision = "a78070d67d4421bb2a2905d8b515d14626b81481"
 
 [[projects]]
   name = "github.com/imdario/mergo"
