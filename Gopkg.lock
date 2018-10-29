@@ -95,7 +95,7 @@
   branch = "master"
   name = "github.com/huangjunwen/tstsvc"
   packages = ["tstsvc","tstsvc/mysql"]
-  revision = "a78070d67d4421bb2a2905d8b515d14626b81481"
+  revision = "0b883b15bbf0d30068c485583836cac6dbf3d2ed"
 
 [[projects]]
   name = "github.com/imdario/mergo"
