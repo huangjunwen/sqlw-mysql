@@ -7,14 +7,14 @@ services:
   - docker
 
 install:
-  - GOOS=linux GOARCH=amd64 go build && tar -zcvf sqlw-mysql-linux-amd64.tgz sqlw-mysql && rm sqlw-mysql
-  - GOOS=darwin GOARCH=amd64 go build && tar -zcvf sqlw-mysql-darwin-amd64.tgz sqlw-mysql && rm sqlw-mysql
+  - GO111MODULE=on GOOS=linux GOARCH=amd64 go build && tar -zcvf sqlw-mysql-linux-amd64.tgz sqlw-mysql && rm sqlw-mysql
+  - GO111MODULE=on GOOS=darwin GOARCH=amd64 go build && tar -zcvf sqlw-mysql-darwin-amd64.tgz sqlw-mysql && rm sqlw-mysql
 
 script:
-  - go test ./datasrc/...
-  - go test ./infos/...
-  - go test ./render/...
-  - go test .
+  - GO111MODULE=on go test ./datasrc/...
+  - GO111MODULE=on go test ./infos/...
+  - GO111MODULE=on go test ./render/...
+  - GO111MODULE=on go test .
 
 deploy:
   provider: releases
