@@ -7,7 +7,7 @@ import (
 
 	"github.com/huangjunwen/sqlw-mysql/datasrc"
 
-	"github.com/huangjunwen/tstsvc/tstsvc/mysql"
+	"github.com/huangjunwen/tstsvc/mysql"
 )
 
 var (

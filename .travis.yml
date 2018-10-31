@@ -6,18 +6,15 @@ go:
 services:
   - docker
 
-before_install:
-  - GO111MODULE=on go mod vendor
+env:
+  - GO111MODULE=on
 
 install:
   - GOOS=linux GOARCH=amd64 go build && tar -zcvf sqlw-mysql-linux-amd64.tgz sqlw-mysql && rm sqlw-mysql
   - GOOS=darwin GOARCH=amd64 go build && tar -zcvf sqlw-mysql-darwin-amd64.tgz sqlw-mysql && rm sqlw-mysql
 
 script:
-  - go test ./datasrc/...
-  - go test ./infos/...
-  - go test ./render/...
-  - go test .
+  - go test . ./datasrc/... ./infos/... ./render/...
 
 deploy:
   provider: releases

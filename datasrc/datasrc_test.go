@@ -5,7 +5,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/huangjunwen/tstsvc/tstsvc/mysql"
+	"github.com/huangjunwen/tstsvc/mysql"
 )
 
 var (
