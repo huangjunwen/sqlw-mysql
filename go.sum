@@ -34,8 +34,6 @@ github.com/gotestyourself/gotestyourself v2.1.0+incompatible h1:JdX/5sh/7yF7jRW5
 github.com/gotestyourself/gotestyourself v2.1.0+incompatible/go.mod h1:zZKM6oeNM8k+FRljX1mnzVYeS8wiGgQyvST1/GafPbY=
 github.com/huandu/xstrings v1.2.0 h1:yPeWdRnmynF7p+lLYz0H2tthW9lqhMJrQV/U7yy4wX0=
 github.com/huandu/xstrings v1.2.0/go.mod h1:DvyZB1rfVYsBIigL8HwpZgxHwXozlTgGqn63UyNX5k4=
-github.com/huangjunwen/tstsvc v0.0.0-20181029100554-48f35045f79f h1:4XBZTNyUF9kXlbuT1Ose3zhcJO2TpRGPRkYafyYmyZY=
-github.com/huangjunwen/tstsvc v0.0.0-20181029100554-48f35045f79f/go.mod h1:6Sn/KiY6kHs7ivfRX5oQ+eqmPYSYywWucqDn7Vq7rRA=
 github.com/huangjunwen/tstsvc v0.1.0 h1:yyHB5ZjKu2QtGoPvSIn/5SZb8WQb2h6cOPlBHeP++NA=
 github.com/huangjunwen/tstsvc v0.1.0/go.mod h1:fJA3NmNWb/+2YfxLYfs0Orv5vqPoxl0/aShu40pL6Mc=
 github.com/imdario/mergo v0.3.6 h1:xTNEAn+kxVO7dTZGu0CegyqKZmoWFI0rF8UxjlB2d28=
