@@ -7,7 +7,7 @@ services:
   - docker
 
 before_install:
-  - go mod vendor
+  - GO111MODULE=on go mod vendor
 
 install:
   - GOOS=linux GOARCH=amd64 go build && tar -zcvf sqlw-mysql-linux-amd64.tgz sqlw-mysql && rm sqlw-mysql
