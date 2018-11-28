@@ -14,7 +14,10 @@ install:
   - GOOS=darwin GOARCH=amd64 go build && tar -zcvf sqlw-mysql-darwin-amd64.tgz sqlw-mysql && rm sqlw-mysql
 
 script:
-  - go test . ./datasrc/... ./infos/... ./render/...
+  - go test -race -coverprofile=coverage.txt -covermode=atomic . ./datasrc/... ./infos/... ./render/...
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
 
 deploy:
   provider: releases
