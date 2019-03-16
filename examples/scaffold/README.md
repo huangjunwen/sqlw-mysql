@@ -6,8 +6,10 @@
 - Add files:
   - Add database initialize sql files into `initdb` directory.
   - Optionally add statement xml files into `stmts` directory.
-- `$ make mysql_server` to start a mysql container.
-- Makes:
-  - `$ make` to generate warpper code into `models` directory.
-  - `$ make gen_png` to generate database diagram (.png) into `models` directory.
-  - `$ make mysql_client` to start a mysql client.
+- `$ make start_mysql_server` and `$ make stop_mysql_server` to start/stop a mysql container.
+- Daily usage:
+  - `$ make mysql_client` or just `$ make` to start a mysql client.
+  - `$ make reset_db` to drop the database and reload everything in `initdb`. Useful after modify sqls.
+  - `$ make gen` to generate warpper code into `models` directory.
+  - `$ make gen_png` to generate database diagram (.png) into `models` directory. Needs `dot` installed.
+  - `$ make clean` remove generated files.
