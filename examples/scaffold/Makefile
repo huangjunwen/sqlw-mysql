@@ -9,19 +9,19 @@ gen: mysql_server_started
 	@source env.sh && sqlw-mysql \
 		-dsn "root:$$MYSQL_ROOT_PASSWORD@tcp(localhost:$$MYSQL_PORT)/$$MYSQL_DATABASE?parseTime=true" \
 		-stmt stmts \
-		-out models && \
-		gofmt -w models/*.go
+		-out $$OUTPUT_DIR && \
+		gofmt -w $$OUTPUT_DIR/*.go
 
 # Generates png.
 gen_png: gen_dot
-	@dot -Tpng models/db.dot > models/db.png
+	@source env.sh && dot -Tpng $$OUTPUT_DIR/db.dot > $$OUTPUT_DIR/db.png
 
 # Generates dot file using graphviz template.
 gen_dot: mysql_server_started
 	@source env.sh && sqlw-mysql \
 		-dsn "root:$$MYSQL_ROOT_PASSWORD@tcp(localhost:$$MYSQL_PORT)/$$MYSQL_DATABASE?parseTime=true" \
 		-tmpl @graphviz \
-		-out models
+		-out $$OUTPUT_DIR
 
 # Resets the database: drop all tables and re init them.
 reset_db: mysql_server_started
@@ -53,4 +53,4 @@ stop_mysql_server:
 
 # Cleans generated files.
 clean:
-	@rm models/*
+	@source env.sh && rm $$OUTPUT_DIR/*
