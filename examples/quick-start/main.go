@@ -15,7 +15,7 @@ func main() {
 	ctx := context.Background()
 
 	// Open db.
-	db, err := sql.Open("mysql", "root:123456@tcp(localhost:13307)/quickstart?parseTime=true")
+	db, err := sql.Open("mysql", "root:654321@tcp(localhost:13307)/quickstart?parseTime=true")
 	if err != nil {
 		log.Fatal(err)
 	}

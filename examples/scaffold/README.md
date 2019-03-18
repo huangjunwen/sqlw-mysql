@@ -1,15 +1,23 @@
 ## How to use this scaffold
 
 - Need docker installed.
-- Copy this directory.
-- Modify `env.sh`.
+- Copy the `Makefile` or include it.
+- Optionally create a `vars.mk` to override variables in makefile:
+  - `DDL_DIR`: Directory containing SQL files to initialize database.
+  - `DML_DIR`: Directory containing statement XMLs used by `sqlw-mysql`.
+  - `OUTPUT_DIR`: Output directory for generated files.
+  - `MYSQL_NAME`: Name of the MySQL docker container.
+  - `MYSQL_PORT`: Port of the MySQL docker container.
+  - `MYSQL_ROOT_PASSWORD`: Root password of the MySQL server.
+  - `MYSQL_DATABASE`: Database name.
+  - `MYSQL_VER`: MySQL docker image version.
 - Add files:
-  - Add database initialize sql files into `initdb` directory.
-  - Optionally add statement xml files into `stmts` directory.
-- `$ make start_mysql_server` and `$ make stop_mysql_server` to start/stop a mysql container.
+  - Add DDL SQL files into `$(DDL_DIR)`.
+  - Optionally add statement XML files into `$(DML_DIR)`.
+- `$ make start_mysql_server` and `$ make stop_mysql_server` to start/stop the MySQL container.
 - Daily usage:
-  - `$ make mysql_client` or just `$ make` to start a mysql client.
-  - `$ make reset_db` to drop the database and reload everything in `initdb`. Useful after modify sqls.
-  - `$ make gen` to generate warpper code into `models` directory.
-  - `$ make gen_png` to generate database diagram (.png) into `models` directory. Needs `dot` installed.
+  - `$ make mysql_client` or just `$ make` to start a command line client.
+  - `$ make gen` to generate warpper code into `$(OUTPUT_DIR)`.
+  - `$ make gen_png` to generate database diagram (.png) into `$(OUTPUT_DIR)`. Needs `dot` installed.
+  - `$ make reset_db` to drop the database and reload everything in `$(DDL_DIR)`. Useful after changing DDL files.
   - `$ make clean` remove generated files.
