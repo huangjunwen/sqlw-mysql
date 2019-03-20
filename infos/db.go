@@ -558,10 +558,19 @@ func (info *FKInfo) RefColumns() []*ColumnInfo {
 
 // RefUniqueIndex returns the referenced unique index.
 // NOTE: It only returns unique index that have exactly the same group of columns as the referenced columns.
-// See: https://dev.mysql.com/doc/refman/5.6/en/create-table-foreign-keys.html
-//   InnoDB permits a foreign key to reference any column or group of columns. However, in the referenced table,
-//   there must be an index where the referenced columns are listed as the first columns in the same order.
-//   NDB requires an explicit unique key (or primary key) on any column referenced as a foreign key.
+//
+// By SQL standard, the referenced columns should be a primary key or unique key of the referenced table
+// to uniquely identify a row. But
+//
+//   InnoDB allows a foreign key constraint to reference a non-unique key.
+//   This is an InnoDB extension to standard SQL.
+//
+// However
+//
+//   The handling of foreign key references to nonunique keys or keys that contain NULL values
+//   is not well defined (...) You are advised to use foreign keys that reference only UNIQUE
+//   (including PRIMARY) and NOT NULL keys.
+//
 func (info *FKInfo) RefUniqueIndex() *IndexInfo {
 	if info == nil {
 		return nil
