@@ -109,7 +109,8 @@ func (loader *Loader) LoadTableNames() ([]string, error) {
 		INFORMATION_SCHEMA.TABLES
 	WHERE
 		TABLE_SCHEMA=? AND TABLE_TYPE='BASE TABLE'
-	`, dbName)
+	ORDER BY
+		TABLE_NAME`, dbName)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +208,9 @@ func (loader *Loader) LoadIndexNames(tableName string) ([]string, error) {
 	FROM 
 		INFORMATION_SCHEMA.STATISTICS 
 	WHERE 
-		TABLE_SCHEMA=? AND TABLE_NAME=?`, dbName, tableName)
+		TABLE_SCHEMA=? AND TABLE_NAME=?
+	ORDER BY
+		INDEX_NAME`, dbName, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +292,9 @@ func (loader *Loader) LoadFKNames(tableName string) ([]string, error) {
 	FROM
 		INFORMATION_SCHEMA.TABLE_CONSTRAINTS
 	WHERE
-		TABLE_SCHEMA=? AND TABLE_NAME = ? AND CONSTRAINT_TYPE = 'FOREIGN KEY'`, dbName, tableName)
+		TABLE_SCHEMA=? AND TABLE_NAME = ? AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+	ORDER BY
+		CONSTRAINT_NAME`, dbName, tableName)
 	if err != nil {
 		return nil, err
 	}
