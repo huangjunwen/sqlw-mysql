@@ -9,6 +9,9 @@ services:
 env:
   - GO111MODULE=on
 
+install:
+  - go build
+
 script:
   - go test -race -coverprofile=coverage.txt -covermode=atomic . ./datasrc/... ./infos/... ./render/...
 
