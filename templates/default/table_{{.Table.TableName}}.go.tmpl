@@ -17,11 +17,12 @@ import (
 {{ $tableName := .Table.TableName }}
 {{ $camelName := .Table.CamelName }}
 {{ $primary := .Table.Primary }}
+{{ $camelJSONKey := ne (env "CAMEL_JSON_KEY") ""  }}
 
 // {{ $camelName }} represents a row of table `{{ $tableName }}`.
 type {{ $camelName }} struct {
   {{ range .Table.Columns -}}
-    {{ .CamelName }} {{ scanType . }} `json:"{{ .ColumnName }}" db:"{{ .ColumnName }}"` 
+    {{ .CamelName }} {{ scanType . }} `json:"{{ if $camelJSONKey }}{{ untitle .CamelName }}{{ else }}{{ .ColumnName }}{{ end }}" db:"{{ .ColumnName }}"` 
   {{ end -}}
 }
 
