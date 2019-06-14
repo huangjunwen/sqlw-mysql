@@ -3,9 +3,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"path"
+	"runtime/debug"
 	"strings"
 
 	"github.com/huangjunwen/sqlw-mysql/render"
@@ -30,6 +32,7 @@ var (
 	outputPkg string
 	whitelist commaSeperatd
 	blacklist commaSeperatd
+	version   bool
 )
 
 func main() {
@@ -41,7 +44,19 @@ func main() {
 	flag.StringVar(&outputPkg, "pkg", "", "(Optional) Alternative package name of the generated code.")
 	flag.Var(&whitelist, "whitelist", "(Optional) Comma separated table names to render.")
 	flag.Var(&blacklist, "blacklist", "(Optional) Comma separated table names not to render.")
+	flag.BoolVar(&version, "version", false, "Show version information.")
 	flag.Parse()
+
+	if version {
+		info, ok := debug.ReadBuildInfo()
+		if !ok {
+			fmt.Println("sqlw-mysql unknown version")
+		} else {
+			fmt.Printf("sqlw-mysql version=%s sum=%s\n", info.Main.Version, info.Main.Sum)
+		}
+		return
+	}
+
 	if dsn == "" {
 		log.Fatalf("Missing -dsn")
 	}
