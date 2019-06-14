@@ -9,24 +9,9 @@ services:
 env:
   - GO111MODULE=on
 
-install:
-  - GOOS=linux GOARCH=amd64 go build && tar -zcvf sqlw-mysql-linux-amd64.tgz sqlw-mysql && rm sqlw-mysql
-  - GOOS=darwin GOARCH=amd64 go build && tar -zcvf sqlw-mysql-darwin-amd64.tgz sqlw-mysql && rm sqlw-mysql
-
 script:
   - go test -race -coverprofile=coverage.txt -covermode=atomic . ./datasrc/... ./infos/... ./render/...
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
 
-deploy:
-  provider: releases
-  api_key:
-    secure: dMWNDB/agGUIy5RsupXW3PM+EfbVy9Es6MHXhfX3ma/TYGEratzGQw2pWRdC31uZux4aC0SDE4E6AWmxw6HGuj3vwSWUbzVhD769K5d3waSF+XjCVvXZpBXXSWDJdJiKz5ATomJQoGGkdYeYCuHmK3eBLGPojKFJrkfATThs+Lf8RURHC3qTWdjdf/Iwt96XwObVlZyzTbBBPguK6+Dk6Simi51vD2HJ7IZaZ14X5B0EThcKIuH/qEsgHYs3Lgv9UfclNXtoRlbJ81TzcPl21E9z8Xok2L9kTuPpM+13jlBMdPBOosMmphqXsMOFMIqMRNUk8nJ7+e8gvS3vAoaZrViYkJ9+c+I2bw/aUxpl+1BHSWDkTOz33npU92MaQ2WgpjIyUvL8xBgftRln4z0PQG4F0ujOODmabcFrvWz/aThF5vfUJEKUofMirxb91rn/3HC03MruuYsLecI5bV24qO7iGeD7W5hz+6vndzUENciSZ4jKpq/gZK5kY6NIeAPGs34EyTZW0jrLmkEUMxgTyyHZcIIq6BbBfPxAsMOa+kIWppPapSbRrIJ6Wojv3hvVXDSZv1PsrpDl36bu7sllTtbMa20Yhcr+np286zNQrznOEzLL3V6Sh2tKyGCs6MO3CJl9CHz1fSLeXry7vPj6M97BRv1yZvbkanlhp/IZhAo=
-  file:
-    - sqlw-mysql-linux-amd64.tgz
-    - sqlw-mysql-darwin-amd64.tgz
-  skip_cleanup: true
-  on:
-    tags: true
-    repo: huangjunwen/sqlw-mysql

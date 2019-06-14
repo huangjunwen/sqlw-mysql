@@ -29,12 +29,8 @@
 
 ## Install
 
-Download pre build binaries in https://github.com/huangjunwen/sqlw-mysql/releases
-
-Or build from source.
-
 ``` bash
-$ go get -u github.com/huangjunwen/sqlw-mysql
+$ GO111MODULE=on go get -u github.com/huangjunwen/sqlw-mysql
 ```
 
 ## Design/Goals/Features
@@ -497,6 +493,8 @@ An example of `use_template`:
 ```
 
 Then the generated statement will be treated as a go template and will be renderred before normal execution. This is useful when you have many `WHERE` condtions combination.
+
+If enviroment `"CAMEL_JSON_KEY"` is given, than json tags of structs generated will be use lower camel case such as `"createdAt"`.
 
 ### Graphviz template
 
