@@ -50,7 +50,7 @@ func main() {
 	if version {
 		info, ok := debug.ReadBuildInfo()
 		if !ok {
-			fmt.Println("sqlw-mysql unknown version")
+			fmt.Println("sqlw-mysql version=v? sum=?")
 		} else {
 			fmt.Printf("sqlw-mysql version=%s sum=%s\n", info.Main.Version, info.Main.Sum)
 		}
