@@ -240,11 +240,11 @@ import (
   {{ else }}
 
     /*
-    {{ $stmtName }} is created from:
+{{ $stmtName }} is created from:
 
-      {{ replace .StmtSrc "\n" "\n  " }}
+  {{ .StmtSrc | replace "\n" "\n  " }}
     */
-    func {{ $stmtName }}(ctx context.Context, e Execer{{ range $args.Args }}, {{ .ArgName }} {{ .ArgType }}{{ end }}) error {
+    func {{ $stmtName }}(ctx context.Context, e Execer{{ range $args.Args }}, {{ .ArgName }} {{ .ArgType }}{{ end }}) (sql.Result, error) {
       // NOTE: Add a nested block to allow identifier shadowing.
       {
         // Build query.
@@ -254,12 +254,11 @@ import (
           {{ end -}}
         })
         if err != nil {
-          return err
+          return nil, err
         }
 
         // Execute.
-        _, err = e.ExecContext(ctx, query, args...)
-        return err
+        return e.ExecContext(ctx, query, args...)
       }
     }
 
