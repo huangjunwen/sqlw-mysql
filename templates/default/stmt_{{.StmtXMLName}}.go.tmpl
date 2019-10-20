@@ -159,7 +159,7 @@ import (
 
   {{ .StmtSrc | replace "\n" "\n  " }}
     */
-    func {{ $stmtName }}(ctx context.Context, q Queryer{{ range $args.Args }}, {{ .ArgName }} {{ .ArgType }}{{ end }}) ({{ if $flagReturnOne }}*{{ $resultName }}{{ else }}{{ $resultName }}Slice{{ end }}, error) {
+    func {{ $stmtName }}(ctx context.Context, q Queryer{{ range $args.Args }}, {{ .ArgName }} {{ .ArgType }}{{ end }}) ({{ if $flagReturnOne }}*{{ $resultName }}{{ else if not $flagHasWildcard }}[]*{{ $resultName }}{{ else }}{{ $resultName }}Slice{{ end }}, error) {
       // NOTE: Add a nested block to allow identifier shadowing.
       {
         // Build query.
