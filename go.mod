@@ -9,7 +9,7 @@ require (
 	github.com/beevik/etree v1.1.0
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/google/uuid v1.0.0 // indirect
-	github.com/huandu/xstrings v1.2.0
+	github.com/huandu/xstrings v1.2.1
 	github.com/huangjunwen/tstsvc v0.5.0
 	github.com/imdario/mergo v0.3.6 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
