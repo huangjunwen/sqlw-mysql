@@ -1,6 +1,7 @@
 # SQL wrapper code generator for MySQL 
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/huangjunwen/sqlw-mysql)](https://goreportcard.com/report/github.com/huangjunwen/sqlw-mysql) 
+[![Go Report Card](https://goreportcard.com/badge/github.com/huangjunwen/sqlw-mysql)](https://goreportcard.com/report/github.com/huangjunwen/sqlw-mysql) [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fhuangjunwen%2Fsqlw-mysql.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fhuangjunwen%2Fsqlw-mysql?ref=badge_shield)
+
 [![Build Status](https://travis-ci.org/huangjunwen/sqlw-mysql.svg?branch=master)](https://travis-ci.org/huangjunwen/sqlw-mysql) 
 [![codecov](https://codecov.io/gh/huangjunwen/sqlw-mysql/branch/master/graph/badge.svg)](https://codecov.io/gh/huangjunwen/sqlw-mysql)
 
@@ -530,3 +531,6 @@ Usage of sqlw-mysql:
 MIT
 
 Author: huangjunwen (kassarar@gmail.com)
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fhuangjunwen%2Fsqlw-mysql.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fhuangjunwen%2Fsqlw-mysql?ref=badge_large)
