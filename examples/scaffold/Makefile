@@ -1,3 +1,4 @@
+SHELL:=/bin/bash
 # Default vars.
 DDL_DIR:=ddl
 DML_DIR:=dml
@@ -6,7 +7,7 @@ MYSQL_NAME:=scaffold
 MYSQL_PORT:=13306
 MYSQL_ROOT_PASSWORD:=654321
 MYSQL_DATABASE:=scaffold
-MYSQL_VER:=5.7.21
+MYSQL_VER:=8.0.19
 
 # You can override them in vars.mk.
 -include vars.mk
