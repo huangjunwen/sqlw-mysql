@@ -44,7 +44,7 @@ $ GO111MODULE=on go get -u github.com/huangjunwen/sqlw-mysql
 
 ## Motivation
 
-See my blog post for this project (in Chinese): [写了一个 MySQL 数据表和查询的 go 代码生成器](https://huangjunwen.github.io/posts/archive/sqlw-mysql/)
+See my blog post for this project (in Chinese): [写了一个 MySQL 数据表和查询的 go 代码生成器](https://huangjunwen.github.io/posts/2018/sqlw-mysql/)
 
 ## Quickstart
 
